@@ -1,0 +1,14 @@
+.metadata-property[data-property-key="progressRecords" i],
+.metadata-property[data-property-key="progressrecords" i],
+.metadata-property[data-property-key="progress-records" i],
+.metadata-property[data-property-key="progressBarColor" i],
+.metadata-property[data-property-key="progressbarcolor" i],
+.metadata-property[data-property-key="progress-bar-color" i],
+[data-property-key="progressRecords" i],
+[data-property-key="progressrecords" i],
+[data-property-key="progress-records" i],
+[data-property-key="progressBarColor" i],
+[data-property-key="progressbarcolor" i],
+[data-property-key="progress-bar-color" i] {
+  display: none !important;
+}
