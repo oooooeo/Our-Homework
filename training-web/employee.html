@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>员工培训任务</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">T</div>
+        <div>
+          <div class="brand-title">培训进度</div>
+          <div class="brand-subtitle">员工学习管理</div>
+        </div>
+      </div>
+
+      <nav class="nav-tabs" aria-label="主导航">
+        <a class="nav-tab is-active" href="./employee.html">
+          <span class="nav-icon">✓</span>
+          员工端
+        </a>
+        <a class="nav-tab" href="./admin.html">
+          <span class="nav-icon">▦</span>
+          后台
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <div>
+          <h1>员工培训任务</h1>
+          <p class="page-meta">选择员工后完成对应培训文章。</p>
+        </div>
+        <label class="select-field">
+          <span>当前员工</span>
+          <select id="employeeSelect"></select>
+        </label>
+      </header>
+
+      <section class="employee-summary" aria-label="员工培训进度">
+        <div class="metric">
+          <span class="metric-label">已完成</span>
+          <strong id="employeeDone">0/0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">完成率</span>
+          <strong id="employeePercent">0%</strong>
+        </div>
+        <div class="metric wide">
+          <span class="metric-label">当前进度</span>
+          <div class="progress-track">
+            <div class="progress-fill" id="employeeProgress"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <section class="panel task-panel">
+          <div class="section-head">
+            <h2>培训任务</h2>
+          </div>
+          <div class="task-list" id="taskList"></div>
+        </section>
+
+        <section class="panel article-panel">
+          <div class="section-head">
+            <h2 id="articleTitle">培训文章</h2>
+            <span class="status-pill" id="articleStatus">未选择</span>
+          </div>
+          <article class="article-body" id="articleBody"></article>
+          <div class="article-actions">
+            <button class="primary-btn" type="button" id="completeTaskBtn" disabled>
+              <span>✓</span>
+              标记完成
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+  <script src="./employee.js"></script>
+</body>
+</html>

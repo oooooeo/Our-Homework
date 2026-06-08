@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>培训后台主页</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">T</div>
+        <div>
+          <div class="brand-title">培训进度</div>
+          <div class="brand-subtitle">员工学习管理</div>
+        </div>
+      </div>
+
+      <nav class="nav-tabs" aria-label="主导航">
+        <a class="nav-tab" href="./employee.html">
+          <span class="nav-icon">✓</span>
+          员工端
+        </a>
+        <a class="nav-tab is-active" href="./admin.html">
+          <span class="nav-icon">▦</span>
+          后台
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <div>
+          <h1>后台主页</h1>
+          <p class="page-meta">实时查看员工培训完成情况。</p>
+        </div>
+      </header>
+
+      <section class="admin-summary" aria-label="后台总体进度">
+        <div class="metric">
+          <span class="metric-label">员工数</span>
+          <strong id="employeeCount">0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">任务数</span>
+          <strong id="taskCount">0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">完成记录</span>
+          <strong id="completionCount">0</strong>
+        </div>
+        <div class="metric wide">
+          <span class="metric-label">总体进度</span>
+          <div class="progress-track">
+            <div class="progress-fill" id="overallProgress"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="admin-grid">
+        <section class="panel">
+          <div class="section-head">
+            <h2>员工进度</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>员工</th>
+                  <th>部门</th>
+                  <th>完成</th>
+                  <th>进度</th>
+                  <th>最近完成</th>
+                </tr>
+              </thead>
+              <tbody id="employeeRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>任务完成率</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>任务</th>
+                  <th>类型</th>
+                  <th>完成率</th>
+                </tr>
+              </thead>
+              <tbody id="taskRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="admin-grid lower">
+        <section class="panel">
+          <div class="section-head">
+            <h2>新增培训任务</h2>
+          </div>
+          <form class="task-form" id="taskForm">
+            <label>
+              <span>任务名称</span>
+              <input id="newTaskTitle" type="text" autocomplete="off" required>
+            </label>
+            <label>
+              <span>培训文章</span>
+              <textarea id="newTaskContent" rows="7" required></textarea>
+            </label>
+            <button class="primary-btn" type="submit">
+              <span>+</span>
+              新增任务
+            </button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <h2>最近完成</h2>
+          </div>
+          <div class="recent-list" id="recentList"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+  <script src="./admin.js"></script>
+</body>
+</html>
