@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训任务</title>
-  <link rel="stylesheet" href="./styles.css?v=20260608-supabase-2">
+  <link rel="stylesheet" href="./styles.css?v=20260608-deadline-comments">
 </head>
 <body>
   <div class="app-shell">
@@ -41,6 +41,8 @@
         </label>
       </header>
 
+      <div class="system-notice" id="databaseNotice" hidden></div>
+
       <section class="employee-summary" aria-label="员工培训进度">
         <div class="metric">
           <span class="metric-label">已完成</span>
@@ -56,6 +58,13 @@
             <div class="progress-fill" id="employeeProgress"></div>
           </div>
         </div>
+      </section>
+
+      <section class="notification-panel" aria-label="任务提醒">
+        <div class="section-head">
+          <h2>任务提醒</h2>
+        </div>
+        <div class="notification-list" id="notificationList"></div>
       </section>
 
       <div class="content-grid">
@@ -78,12 +87,27 @@
               标记完成
             </button>
           </div>
+          <section class="comment-panel" aria-label="任务评论区">
+            <div class="section-head compact">
+              <h2>评论区</h2>
+              <span class="comment-count" id="commentCount">0 条</span>
+            </div>
+            <div class="comment-list" id="commentList"></div>
+            <form class="comment-form" id="commentForm">
+              <textarea id="commentBody" rows="3" placeholder="输入你的讨论内容..." required></textarea>
+              <div class="form-message" id="commentMessage" aria-live="polite"></div>
+              <button class="primary-btn" type="submit">
+                <span>↵</span>
+                发送评论
+              </button>
+            </form>
+          </section>
         </section>
       </div>
     </main>
   </div>
 
-  <script src="./app.js?v=20260608-supabase-2"></script>
-  <script src="./employee.js?v=20260608-supabase-2"></script>
+  <script src="./app.js?v=20260608-deadline-comments"></script>
+  <script src="./employee.js?v=20260608-deadline-comments"></script>
 </body>
 </html>

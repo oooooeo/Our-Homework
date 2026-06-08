@@ -9,8 +9,14 @@ const TrainingStore = (() => {
     employees: [],
     tasks: [],
     completions: [],
+    comments: [],
+    schema: {
+      dueAt: true,
+      comments: true
+    },
     loading: true,
-    error: ""
+    error: "",
+    databaseNotice: ""
   };
 
   const listeners = new Set();
@@ -33,6 +39,53 @@ const TrainingStore = (() => {
   function subscribe(listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  }
+
+  function isSchemaCacheError(error, keyword) {
+    const message = String(error?.message ?? "").toLowerCase();
+    return message.includes(String(keyword).toLowerCase()) && (
+      message.includes("schema cache") ||
+      message.includes("column") ||
+      message.includes("relation") ||
+      message.includes("table")
+    );
+  }
+
+  function normalizeTask(task) {
+    return {
+      ...task,
+      content: Array.isArray(task.content) ? task.content : [],
+      dueAt: task.due_at ?? null,
+      createdAt: task.created_at
+    };
+  }
+
+  function normalizeCompletion(record) {
+    return {
+      id: record.id,
+      employeeId: record.employee_id,
+      taskId: record.task_id,
+      completedAt: record.completed_at
+    };
+  }
+
+  function normalizeComment(record) {
+    return {
+      id: record.id,
+      taskId: record.task_id,
+      employeeId: record.employee_id,
+      body: record.body,
+      createdAt: record.created_at
+    };
+  }
+
+  function schemaNotice(schema) {
+    const missing = [];
+    if (!schema.dueAt) missing.push("任务截止时间");
+    if (!schema.comments) missing.push("任务评论区");
+    return missing.length
+      ? `数据库还没有启用：${missing.join("、")}。请先在 Supabase SQL Editor 执行仓库中的升级 SQL。`
+      : "";
   }
 
   async function request(path, options = {}) {
@@ -60,30 +113,63 @@ const TrainingStore = (() => {
     return text ? JSON.parse(text) : null;
   }
 
+  async function loadTasksWithSchema() {
+    try {
+      const rows = await request("/rest/v1/training_tasks?select=id,code,title,type,minutes,content,due_at,created_at&order=created_at.asc");
+      return {
+        rows: rows ?? [],
+        dueAt: true
+      };
+    } catch (error) {
+      if (!isSchemaCacheError(error, "due_at")) throw error;
+      const rows = await request("/rest/v1/training_tasks?select=id,code,title,type,minutes,content,created_at&order=created_at.asc");
+      return {
+        rows: rows ?? [],
+        dueAt: false
+      };
+    }
+  }
+
+  async function loadCommentsWithSchema() {
+    try {
+      const rows = await request("/rest/v1/task_comments?select=id,task_id,employee_id,body,created_at&order=created_at.asc");
+      return {
+        rows: rows ?? [],
+        comments: true
+      };
+    } catch (error) {
+      if (!isSchemaCacheError(error, "task_comments")) throw error;
+      return {
+        rows: [],
+        comments: false
+      };
+    }
+  }
+
   async function loadRemoteState({ silent = false } = {}) {
     if (!silent) setState({ loading: true, error: "" });
 
     try {
-      const [employees, tasks, completions] = await Promise.all([
+      const [employees, taskResult, completions, commentResult] = await Promise.all([
         request("/rest/v1/employees?select=id,code,name,department,role&order=code.asc"),
-        request("/rest/v1/training_tasks?select=id,code,title,type,minutes,content,created_at&order=created_at.asc"),
-        request("/rest/v1/training_completions?select=id,employee_id,task_id,completed_at&order=completed_at.asc")
+        loadTasksWithSchema(),
+        request("/rest/v1/training_completions?select=id,employee_id,task_id,completed_at&order=completed_at.asc"),
+        loadCommentsWithSchema()
       ]);
+      const schema = {
+        dueAt: taskResult.dueAt,
+        comments: commentResult.comments
+      };
 
       setState({
         employees: employees ?? [],
-        tasks: (tasks ?? []).map(task => ({
-          ...task,
-          content: Array.isArray(task.content) ? task.content : []
-        })),
-        completions: (completions ?? []).map(record => ({
-          id: record.id,
-          employeeId: record.employee_id,
-          taskId: record.task_id,
-          completedAt: record.completed_at
-        })),
+        tasks: taskResult.rows.map(normalizeTask),
+        completions: (completions ?? []).map(normalizeCompletion),
+        comments: commentResult.rows.map(normalizeComment),
+        schema,
         loading: false,
-        error: ""
+        error: "",
+        databaseNotice: schemaNotice(schema)
       });
     } catch (error) {
       console.error(error);
@@ -111,6 +197,10 @@ const TrainingStore = (() => {
 
   function taskCompletions(taskId) {
     return state.completions.filter(item => item.taskId === taskId);
+  }
+
+  function taskComments(taskId) {
+    return state.comments.filter(item => item.taskId === taskId);
   }
 
   async function completeTask(employeeId, taskId) {
@@ -143,26 +233,68 @@ const TrainingStore = (() => {
     }
   }
 
-  async function createTask({ title, content }) {
+  function normalizeDueAt(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString();
+  }
+
+  async function createTask({ title, content, dueAt }) {
     const trimmedTitle = String(title ?? "").trim();
     const trimmedContent = String(content ?? "").trim();
+    const normalizedDueAt = normalizeDueAt(dueAt);
     if (!trimmedTitle || !trimmedContent) return null;
+    if (dueAt && !normalizedDueAt) {
+      throw new Error("截止时间格式不正确。");
+    }
+    if (normalizedDueAt && state.schema.dueAt === false) {
+      throw new Error("数据库还没有启用任务截止时间，请先执行升级 SQL。");
+    }
 
-    const rows = await request("/rest/v1/training_tasks?select=id,code,title,type,minutes,content,created_at", {
+    const payload = {
+      code: `task-${Date.now().toString(36)}`,
+      title: trimmedTitle,
+      type: "培训文章",
+      minutes: Math.max(3, Math.ceil(trimmedContent.length / 120)),
+      content: trimmedContent.split(/\n+/).map(item => item.trim()).filter(Boolean)
+    };
+    if (normalizedDueAt) payload.due_at = normalizedDueAt;
+
+    const select = state.schema.dueAt === false
+      ? "id,code,title,type,minutes,content,created_at"
+      : "id,code,title,type,minutes,content,due_at,created_at";
+    const rows = await request(`/rest/v1/training_tasks?select=${select}`, {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(payload)
+    });
+
+    channel?.postMessage({ type: "state-updated" });
+    await loadRemoteState({ silent: true });
+    return Array.isArray(rows) ? normalizeTask(rows[0]) : null;
+  }
+
+  async function createComment({ taskId, employeeId, body }) {
+    const trimmedBody = String(body ?? "").trim();
+    if (!taskId || !employeeId || !trimmedBody) return null;
+    if (state.schema.comments === false) {
+      throw new Error("数据库还没有启用任务评论区，请先执行升级 SQL。");
+    }
+
+    const rows = await request("/rest/v1/task_comments?select=id,task_id,employee_id,body,created_at", {
       method: "POST",
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
-        code: `task-${Date.now().toString(36)}`,
-        title: trimmedTitle,
-        type: "培训文章",
-        minutes: Math.max(3, Math.ceil(trimmedContent.length / 120)),
-        content: trimmedContent.split(/\n+/).map(item => item.trim()).filter(Boolean)
+        task_id: taskId,
+        employee_id: employeeId,
+        body: trimmedBody
       })
     });
 
     channel?.postMessage({ type: "state-updated" });
     await loadRemoteState({ silent: true });
-    return Array.isArray(rows) ? rows[0] : null;
+    return Array.isArray(rows) ? normalizeComment(rows[0]) : null;
   }
 
   function percent(done, total) {
@@ -175,6 +307,74 @@ const TrainingStore = (() => {
     if (Number.isNaN(date.getTime())) return "-";
     const pad = n => String(n).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function formatRelativeDeadline(value) {
+    if (!value) return "未设置";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "未设置";
+    const diff = date.getTime() - Date.now();
+    const absHours = Math.ceil(Math.abs(diff) / 36e5);
+    if (diff < 0) {
+      if (absHours < 24) return `已逾期 ${absHours} 小时`;
+      return `已逾期 ${Math.ceil(absHours / 24)} 天`;
+    }
+    if (absHours < 24) return `${absHours} 小时后截止`;
+    return `${Math.ceil(absHours / 24)} 天后截止`;
+  }
+
+  function deadlineStatus(task, complete = false) {
+    if (!task?.dueAt) {
+      return {
+        level: "none",
+        label: "未设置截止时间",
+        detail: "未设置",
+        urgent: false
+      };
+    }
+
+    const dueTime = new Date(task.dueAt).getTime();
+    if (Number.isNaN(dueTime)) {
+      return {
+        level: "none",
+        label: "截止时间异常",
+        detail: "未设置",
+        urgent: false
+      };
+    }
+
+    const diff = dueTime - Date.now();
+    const detail = formatRelativeDeadline(task.dueAt);
+    if (complete) {
+      return {
+        level: "done",
+        label: `已完成，截止 ${formatTime(task.dueAt)}`,
+        detail,
+        urgent: false
+      };
+    }
+    if (diff < 0) {
+      return {
+        level: "overdue",
+        label: `已逾期，截止 ${formatTime(task.dueAt)}`,
+        detail,
+        urgent: true
+      };
+    }
+    if (diff <= 48 * 36e5) {
+      return {
+        level: "soon",
+        label: `即将截止：${formatTime(task.dueAt)}`,
+        detail,
+        urgent: true
+      };
+    }
+    return {
+      level: "normal",
+      label: `截止 ${formatTime(task.dueAt)}`,
+      detail,
+      urgent: false
+    };
   }
 
   function esc(value) {
@@ -240,10 +440,14 @@ const TrainingStore = (() => {
     isComplete,
     employeeCompletions,
     taskCompletions,
+    taskComments,
     completeTask,
     createTask,
+    createComment,
     percent,
     formatTime,
+    formatRelativeDeadline,
+    deadlineStatus,
     esc,
     setProgress
   };

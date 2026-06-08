@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>培训后台主页</title>
-  <link rel="stylesheet" href="./styles.css?v=20260608-supabase-2">
+  <link rel="stylesheet" href="./styles.css?v=20260608-deadline-comments">
 </head>
 <body>
   <div class="app-shell">
@@ -36,6 +36,8 @@
           <p class="page-meta">实时查看员工培训完成情况。</p>
         </div>
       </header>
+
+      <div class="system-notice" id="databaseNotice" hidden></div>
 
       <section class="admin-summary" aria-label="后台总体进度">
         <div class="metric">
@@ -89,6 +91,7 @@
                 <tr>
                   <th>任务</th>
                   <th>类型</th>
+                  <th>截止时间</th>
                   <th>完成率</th>
                 </tr>
               </thead>
@@ -109,9 +112,14 @@
               <input id="newTaskTitle" type="text" autocomplete="off" required>
             </label>
             <label>
+              <span>完成截止时间</span>
+              <input id="newTaskDueAt" type="datetime-local">
+            </label>
+            <label>
               <span>培训文章</span>
               <textarea id="newTaskContent" rows="7" required></textarea>
             </label>
+            <div class="form-message" id="taskFormMessage" aria-live="polite"></div>
             <button class="primary-btn" type="submit">
               <span>+</span>
               新增任务
@@ -129,7 +137,7 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260608-supabase-2"></script>
-  <script src="./admin.js?v=20260608-supabase-2"></script>
+  <script src="./app.js?v=20260608-deadline-comments"></script>
+  <script src="./admin.js?v=20260608-deadline-comments"></script>
 </body>
 </html>
