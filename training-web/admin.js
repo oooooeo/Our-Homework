@@ -11,8 +11,21 @@ const adminEls = {
   recentList: document.querySelector("#recentList")
 };
 
+let savingTask = false;
+
 function renderAdminPage() {
   const state = TrainingStore.getState();
+
+  if (state.loading) {
+    renderLoading();
+    return;
+  }
+
+  if (state.error) {
+    renderError(state.error);
+    return;
+  }
+
   const totalCapacity = state.employees.length * state.tasks.length;
   const completionCount = state.completions.length;
   const overallPct = TrainingStore.percent(completionCount, totalCapacity);
@@ -25,6 +38,22 @@ function renderAdminPage() {
   renderEmployeeRows(state);
   renderTaskRows(state);
   renderRecentList(state);
+}
+
+function renderLoading() {
+  adminEls.employeeCount.textContent = "0";
+  adminEls.taskCount.textContent = "0";
+  adminEls.completionCount.textContent = "0";
+  TrainingStore.setProgress(adminEls.overallProgress, 0);
+  adminEls.employeeRows.innerHTML = `<tr><td colspan="5" class="empty-table">正在加载培训数据...</td></tr>`;
+  adminEls.taskRows.innerHTML = `<tr><td colspan="3" class="empty-table">正在加载培训任务...</td></tr>`;
+  adminEls.recentList.innerHTML = `<div class="empty-state">正在连接 Supabase。</div>`;
+}
+
+function renderError(message) {
+  adminEls.employeeRows.innerHTML = `<tr><td colspan="5" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
+  adminEls.taskRows.innerHTML = `<tr><td colspan="3" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
+  adminEls.recentList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
 }
 
 function renderEmployeeRows(state) {
@@ -100,14 +129,26 @@ function renderRecentList(state) {
     : `<div class="empty-state">暂无完成记录</div>`;
 }
 
-adminEls.taskForm.addEventListener("submit", event => {
+adminEls.taskForm.addEventListener("submit", async event => {
   event.preventDefault();
-  const task = TrainingStore.createTask({
-    title: adminEls.newTaskTitle.value,
-    content: adminEls.newTaskContent.value
-  });
-  if (!task) return;
-  adminEls.taskForm.reset();
+  if (savingTask) return;
+
+  savingTask = true;
+  const submitButton = adminEls.taskForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  submitButton.lastChild.textContent = " 保存中";
+
+  try {
+    const task = await TrainingStore.createTask({
+      title: adminEls.newTaskTitle.value,
+      content: adminEls.newTaskContent.value
+    });
+    if (task) adminEls.taskForm.reset();
+  } finally {
+    savingTask = false;
+    submitButton.disabled = false;
+    submitButton.lastChild.textContent = " 新增任务";
+  }
 });
 
 TrainingStore.subscribe(renderAdminPage);

@@ -10,11 +10,22 @@ const employeeEls = {
   completeTaskBtn: document.querySelector("#completeTaskBtn")
 };
 
-let selectedEmployeeId = TrainingStore.getState().employees[0]?.id ?? "";
-let selectedTaskId = TrainingStore.getState().tasks[0]?.id ?? "";
+let selectedEmployeeId = "";
+let selectedTaskId = "";
+let saving = false;
 
 function renderEmployeePage() {
   const state = TrainingStore.getState();
+
+  if (state.loading) {
+    renderLoading();
+    return;
+  }
+
+  if (state.error) {
+    renderError(state.error);
+    return;
+  }
 
   if (!state.employees.some(employee => employee.id === selectedEmployeeId)) {
     selectedEmployeeId = state.employees[0]?.id ?? "";
@@ -27,6 +38,28 @@ function renderEmployeePage() {
   renderEmployeeSummary(state);
   renderTaskList(state);
   renderArticle(state.tasks.find(task => task.id === selectedTaskId));
+}
+
+function renderLoading() {
+  employeeEls.employeeSelect.innerHTML = "";
+  employeeEls.employeeDone.textContent = "0/0";
+  employeeEls.employeePercent.textContent = "0%";
+  TrainingStore.setProgress(employeeEls.employeeProgress, 0);
+  employeeEls.taskList.innerHTML = `<div class="empty-state">正在加载培训数据...</div>`;
+  employeeEls.articleTitle.textContent = "培训文章";
+  employeeEls.articleStatus.textContent = "加载中";
+  employeeEls.articleStatus.classList.remove("is-done");
+  employeeEls.articleBody.innerHTML = `<p class="empty-state">正在连接 Supabase。</p>`;
+  employeeEls.completeTaskBtn.disabled = true;
+}
+
+function renderError(message) {
+  employeeEls.taskList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
+  employeeEls.articleTitle.textContent = "无法加载";
+  employeeEls.articleStatus.textContent = "错误";
+  employeeEls.articleStatus.classList.remove("is-done");
+  employeeEls.articleBody.innerHTML = `<p class="empty-state">${TrainingStore.esc(message)}</p>`;
+  employeeEls.completeTaskBtn.disabled = true;
 }
 
 function renderEmployeeOptions(state) {
@@ -83,7 +116,8 @@ function renderArticle(task) {
   employeeEls.articleBody.innerHTML = task.content.map(paragraph => `<p>${TrainingStore.esc(paragraph)}</p>`).join("");
   employeeEls.articleStatus.textContent = complete ? "已完成" : "未完成";
   employeeEls.articleStatus.classList.toggle("is-done", complete);
-  employeeEls.completeTaskBtn.disabled = complete;
+  employeeEls.completeTaskBtn.disabled = complete || saving;
+  employeeEls.completeTaskBtn.lastChild.textContent = saving ? " 保存中" : " 标记完成";
 }
 
 employeeEls.employeeSelect.addEventListener("change", event => {
@@ -98,8 +132,13 @@ employeeEls.taskList.addEventListener("click", event => {
   renderEmployeePage();
 });
 
-employeeEls.completeTaskBtn.addEventListener("click", () => {
-  TrainingStore.completeTask(selectedEmployeeId, selectedTaskId);
+employeeEls.completeTaskBtn.addEventListener("click", async () => {
+  if (saving) return;
+  saving = true;
+  renderEmployeePage();
+  await TrainingStore.completeTask(selectedEmployeeId, selectedTaskId);
+  saving = false;
+  renderEmployeePage();
 });
 
 TrainingStore.subscribe(renderEmployeePage);

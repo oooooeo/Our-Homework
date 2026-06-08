@@ -460,6 +460,12 @@ td {
   padding: 18px;
 }
 
+.empty-table {
+  color: var(--muted);
+  padding: 18px;
+  text-align: center;
+}
+
 .portal-shell {
   min-height: 100vh;
   display: grid;
