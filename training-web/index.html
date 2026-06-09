@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训进度系统入口</title>
-  <link rel="stylesheet" href="./styles.css?v=20260609-auth">
+  <link rel="stylesheet" href="./styles.css?v=20260609-password-auth">
 </head>
 <body>
   <div class="portal-shell">
@@ -19,27 +19,76 @@
 
       <section class="portal-hero">
         <h1>员工培训进度系统</h1>
-        <p>首次进入请设置唯一用户名；之后凭用户名继续进入系统。</p>
+        <p>员工端和后台端分开登录，员工账号使用唯一用户名和密码。</p>
       </section>
 
-      <section class="portal-login" aria-label="登录注册">
-        <form class="login-form" id="loginForm">
-          <label>
-            <span>用户名</span>
-            <input id="usernameInput" type="text" autocomplete="username" placeholder="例如 zhangsan" required>
-          </label>
-          <button class="primary-btn" type="submit">
-            <span>→</span>
-            进入系统
-          </button>
-        </form>
-        <div class="form-message" id="loginMessage" aria-live="polite"></div>
-        <p class="login-note">普通用户名进入员工端；用户名为 supermanager 时进入后台端。</p>
+      <section class="auth-grid" aria-label="系统登录">
+        <section class="auth-panel">
+          <div class="section-head compact">
+            <h2>员工登录</h2>
+          </div>
+          <form class="auth-form" id="employeeLoginForm">
+            <label>
+              <span>用户名</span>
+              <input id="employeeLoginUsername" type="text" autocomplete="username" required>
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="employeeLoginPassword" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="primary-btn" type="submit">
+              <span>→</span>
+              进入员工端
+            </button>
+          </form>
+        </section>
+
+        <section class="auth-panel">
+          <div class="section-head compact">
+            <h2>员工注册</h2>
+          </div>
+          <form class="auth-form" id="employeeRegisterForm">
+            <label>
+              <span>唯一用户名</span>
+              <input id="employeeRegisterUsername" type="text" autocomplete="username" placeholder="2-32 位小写字母/数字" required>
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="employeeRegisterPassword" type="password" autocomplete="new-password" minlength="6" required>
+            </label>
+            <button class="primary-btn" type="submit">
+              <span>+</span>
+              注册并进入
+            </button>
+          </form>
+        </section>
+
+        <section class="auth-panel">
+          <div class="section-head compact">
+            <h2>后台登录</h2>
+          </div>
+          <form class="auth-form" id="managerLoginForm">
+            <label>
+              <span>后台用户名</span>
+              <input id="managerUsername" type="text" autocomplete="username" value="supermanager" required>
+            </label>
+            <label>
+              <span>后台密码</span>
+              <input id="managerPassword" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="primary-btn" type="submit">
+              <span>▦</span>
+              进入后台端
+            </button>
+          </form>
+        </section>
       </section>
+
+      <div class="form-message portal-message" id="loginMessage" aria-live="polite"></div>
     </main>
   </div>
 
-  <script src="./app.js?v=20260609-auth"></script>
-  <script src="./portal.js?v=20260609-auth"></script>
+  <script src="./app.js?v=20260609-password-auth"></script>
+  <script src="./portal.js?v=20260609-password-auth"></script>
 </body>
 </html>

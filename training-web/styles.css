@@ -161,7 +161,8 @@ h2 {
 
 .select-field,
 .task-form label,
-.login-form label {
+.login-form label,
+.auth-form label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -336,7 +337,8 @@ textarea:focus {
 }
 
 .small-btn,
-.primary-btn {
+.primary-btn,
+.danger-btn {
   border: 1px solid var(--line);
   border-radius: 6px;
   min-height: 34px;
@@ -365,6 +367,23 @@ textarea:focus {
 }
 
 .primary-btn:disabled {
+  border-color: var(--line);
+  background: #eef1f5;
+  color: #98a2b3;
+  cursor: not-allowed;
+}
+
+.danger-btn {
+  color: var(--danger);
+  border-color: #ffa39e;
+  background: #fff;
+}
+
+.danger-btn:hover {
+  background: var(--soft-red);
+}
+
+.danger-btn:disabled {
   border-color: var(--line);
   background: #eef1f5;
   color: #98a2b3;
@@ -750,6 +769,35 @@ td {
   gap: 14px;
 }
 
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.auth-panel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.auth-form .primary-btn {
+  width: 100%;
+}
+
+.portal-message {
+  margin-top: 12px;
+}
+
 .portal-login {
   width: min(560px, 100%);
   border: 1px solid var(--line);
@@ -862,6 +910,7 @@ td {
   .admin-summary,
   .content-grid,
   .admin-grid,
+  .auth-grid,
   .portal-grid,
   .login-form {
     grid-template-columns: 1fr;

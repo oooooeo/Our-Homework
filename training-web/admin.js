@@ -17,6 +17,7 @@ const adminEls = {
 };
 
 let savingTask = false;
+let deletingTaskId = "";
 
 function redirectToPortal() {
   window.location.href = "./index.html";
@@ -62,13 +63,13 @@ function renderLoading() {
   adminEls.completionCount.textContent = "0";
   TrainingStore.setProgress(adminEls.overallProgress, 0);
   adminEls.employeeRows.innerHTML = `<tr><td colspan="5" class="empty-table">正在加载培训数据...</td></tr>`;
-  adminEls.taskRows.innerHTML = `<tr><td colspan="4" class="empty-table">正在加载培训任务...</td></tr>`;
+  adminEls.taskRows.innerHTML = `<tr><td colspan="5" class="empty-table">正在加载培训任务...</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">正在连接 Supabase。</div>`;
 }
 
 function renderError(message) {
   adminEls.employeeRows.innerHTML = `<tr><td colspan="5" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
-  adminEls.taskRows.innerHTML = `<tr><td colspan="4" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
+  adminEls.taskRows.innerHTML = `<tr><td colspan="5" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
 }
 
@@ -122,6 +123,11 @@ function renderTaskRows(state) {
             <div class="progress-track"><div class="progress-fill" data-pct="${pct}"></div></div>
             <span>${pct}%</span>
           </div>
+        </td>
+        <td>
+          <button class="danger-btn" type="button" data-delete-task="${TrainingStore.esc(task.id)}" ${deletingTaskId === task.id ? "disabled" : ""}>
+            ${deletingTaskId === task.id ? "删除中" : "撤回"}
+          </button>
         </td>
       </tr>
     `;
@@ -186,6 +192,31 @@ adminEls.taskForm.addEventListener("submit", async event => {
     savingTask = false;
     submitButton.disabled = false;
     submitButton.lastChild.textContent = " 新增任务";
+  }
+});
+
+adminEls.taskRows.addEventListener("click", async event => {
+  const trigger = event.target.closest("[data-delete-task]");
+  if (!trigger || deletingTaskId) return;
+
+  const taskId = trigger.dataset.deleteTask;
+  const state = TrainingStore.getState();
+  const task = state.tasks.find(item => item.id === taskId);
+  const message = `确认撤回任务“${task?.title ?? "未知任务"}”吗？相关完成记录和评论也会被删除。`;
+  if (!window.confirm(message)) return;
+
+  deletingTaskId = taskId;
+  renderAdminPage();
+
+  try {
+    await TrainingStore.deleteTask(taskId);
+  } catch (error) {
+    console.error(error);
+    adminEls.taskFormMessage.textContent = error.message || "删除任务失败，请稍后重试。";
+    adminEls.taskFormMessage.classList.add("is-error");
+  } finally {
+    deletingTaskId = "";
+    renderAdminPage();
   }
 });
 

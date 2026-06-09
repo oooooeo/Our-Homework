@@ -90,7 +90,7 @@ const TrainingStore = (() => {
   }
 
   function databaseAuthNotice() {
-    return "如果是首次启用用户名注册，请先在 Supabase SQL Editor 执行用户名登录升级 SQL。";
+    return "如果是首次启用密码登录，请先在 Supabase SQL Editor 执行密码登录升级 SQL。";
   }
 
   function isSchemaCacheError(error, keyword) {
@@ -165,68 +165,84 @@ const TrainingStore = (() => {
     return text ? JSON.parse(text) : null;
   }
 
-  async function lookupEmployeeByUsername(username) {
-    const normalized = normalizeUsername(username);
-    const rows = await request(`/rest/v1/employees?select=id,code,name,department,role&code=eq.${encodeURIComponent(normalized)}&limit=1`);
-    return Array.isArray(rows) ? rows[0] ?? null : null;
+  function isValidPassword(value) {
+    return String(value ?? "").length >= 6;
   }
 
-  async function createEmployeeByUsername(username) {
-    const normalized = normalizeUsername(username);
-    const rows = await request("/rest/v1/employees?select=id,code,name,department,role", {
+  function normalizeAuthResult(row, status) {
+    const role = row?.role;
+    const username = normalizeUsername(row?.username);
+    const employeeId = row?.employee_id ?? null;
+    setSession({ role, username, employeeId });
+    return {
+      role,
+      username,
+      employeeId,
+      status,
+      employee: employeeId ? {
+        id: employeeId,
+        code: username,
+        name: row.employee_name ?? username,
+        department: row.department ?? "自助注册",
+        role: "员工"
+      } : null
+    };
+  }
+
+  async function callAuthFunction(name, username, password) {
+    const rows = await request(`/rest/v1/rpc/${name}`, {
       method: "POST",
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
-        code: normalized,
-        name: normalized,
-        department: "自助注册",
-        role: "员工"
+        input_username: normalizeUsername(username),
+        input_password: String(password ?? "")
       })
     });
-    return Array.isArray(rows) ? rows[0] ?? null : null;
+    return Array.isArray(rows) ? rows[0] ?? null : rows;
   }
 
-  async function loginOrRegister(username) {
+  async function login(username, password) {
     const normalized = normalizeUsername(username);
     if (!isValidUsername(normalized)) {
       throw new Error("用户名只能使用 2-32 位小写字母、数字、下划线或短横线。");
     }
-
-    if (normalized === MANAGER_USERNAME) {
-      setSession({ role: "manager", username: normalized });
-      return { role: "manager", username: normalized, status: "logged-in" };
+    if (!isValidPassword(password)) {
+      throw new Error("密码至少需要 6 位。");
     }
 
-    let employee = await lookupEmployeeByUsername(normalized);
-    let status = "logged-in";
-
-    if (!employee) {
-      try {
-        employee = await createEmployeeByUsername(normalized);
-        status = "registered";
-      } catch (error) {
-        if (error.status === 409) {
-          employee = await lookupEmployeeByUsername(normalized);
-          status = "logged-in";
-        } else if (error.status === 401 || error.status === 403 || error.status === 404) {
-          throw new Error(`当前数据库还不允许自助注册。${databaseAuthNotice()}`);
-        } else {
-          throw error;
-        }
+    try {
+      const row = await callAuthFunction("training_auth_login", normalized, password);
+      if (!row) throw new Error("登录失败，请检查用户名和密码。");
+      await loadRemoteState({ silent: true });
+      return normalizeAuthResult(row, "logged-in");
+    } catch (error) {
+      if (error.status === 401 || error.status === 403 || error.status === 404) {
+        throw new Error(`当前数据库还不支持密码登录。${databaseAuthNotice()}`);
       }
+      throw error;
+    }
+  }
+
+  async function register(username, password) {
+    const normalized = normalizeUsername(username);
+    if (!isValidUsername(normalized)) {
+      throw new Error("用户名只能使用 2-32 位小写字母、数字、下划线或短横线。");
+    }
+    if (!isValidPassword(password)) {
+      throw new Error("密码至少需要 6 位。");
     }
 
-    if (!employee) {
-      throw new Error("没有找到该用户名，也无法完成注册。请稍后重试。");
+    try {
+      const row = await callAuthFunction("training_auth_register", normalized, password);
+      if (!row) throw new Error("注册失败，请稍后重试。");
+      await loadRemoteState({ silent: true });
+      return normalizeAuthResult(row, "registered");
+    } catch (error) {
+      if (error.status === 401 || error.status === 403 || error.status === 404) {
+        throw new Error(`当前数据库还不支持密码注册。${databaseAuthNotice()}`);
+      }
+      throw error;
     }
-
-    setSession({
-      role: "employee",
-      username: normalized,
-      employeeId: employee.id
-    });
-    await loadRemoteState({ silent: true });
-    return { role: "employee", username: normalized, employee, status };
   }
 
   async function loadTasksWithSchema() {
@@ -389,6 +405,25 @@ const TrainingStore = (() => {
     channel?.postMessage({ type: "state-updated" });
     await loadRemoteState({ silent: true });
     return Array.isArray(rows) ? normalizeTask(rows[0]) : null;
+  }
+
+  async function deleteTask(taskId) {
+    if (!taskId) return;
+    const session = getSession();
+    if (!isManagerSession()) {
+      throw new Error("只有后台账号可以删除任务。");
+    }
+
+    await request("/rest/v1/rpc/training_delete_task", {
+      method: "POST",
+      body: JSON.stringify({
+        input_task_id: taskId,
+        input_username: session.username
+      })
+    });
+
+    channel?.postMessage({ type: "state-updated" });
+    await loadRemoteState({ silent: true });
   }
 
   async function createComment({ taskId, employeeId, body }) {
@@ -555,19 +590,22 @@ const TrainingStore = (() => {
     loadRemoteState,
     normalizeUsername,
     isValidUsername,
+    isValidPassword,
     getSession,
     setSession,
     clearSession,
     isManagerSession,
     isEmployeeSession,
     sessionEmployee,
-    loginOrRegister,
+    login,
+    register,
     isComplete,
     employeeCompletions,
     taskCompletions,
     taskComments,
     completeTask,
     createTask,
+    deleteTask,
     createComment,
     percent,
     formatTime,
