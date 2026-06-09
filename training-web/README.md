@@ -18,16 +18,15 @@
 
 直接用浏览器打开入口页：
 
-```text
-training-web/index.html
-```
+- 线上总入口：[https://oooooeo.github.io/Our-Homework/](https://oooooeo.github.io/Our-Homework/)
+- 本机总入口：[file:///C:/Users/%E6%96%B9/Documents/New%20project/Our-Homework/index.html](file:///C:/Users/%E6%96%B9/Documents/New%20project/Our-Homework/index.html)
 
 也可以分别打开两个独立页面：
 
-```text
-training-web/employee.html
-training-web/admin.html
-```
+- 线上员工端：[https://oooooeo.github.io/Our-Homework/training-web/employee.html](https://oooooeo.github.io/Our-Homework/training-web/employee.html)
+- 线上后台端：[https://oooooeo.github.io/Our-Homework/training-web/admin.html](https://oooooeo.github.io/Our-Homework/training-web/admin.html)
+- 本机员工端：[file:///C:/Users/%E6%96%B9/Documents/New%20project/Our-Homework/training-web/employee.html](file:///C:/Users/%E6%96%B9/Documents/New%20project/Our-Homework/training-web/employee.html)
+- 本机后台端：[file:///C:/Users/%E6%96%B9/Documents/New%20project/Our-Homework/training-web/admin.html](file:///C:/Users/%E6%96%B9/Documents/New%20project/Our-Homework/training-web/admin.html)
 
 如果同时打开两个窗口，一个打开员工端、一个打开后台端，员工端标记完成后，后台端会自动刷新进度。
 
