@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训任务</title>
-  <link rel="stylesheet" href="./styles.css?v=20260608-deadline-comments">
+  <link rel="stylesheet" href="./styles.css?v=20260609-auth">
 </head>
 <body>
   <div class="app-shell">
@@ -36,8 +36,11 @@
           <p class="page-meta">选择员工后完成对应培训文章。</p>
         </div>
         <label class="select-field">
-          <span>当前员工</span>
-          <select id="employeeSelect"></select>
+          <span>当前用户</span>
+          <div class="session-box">
+            <strong id="currentUsername">未登录</strong>
+            <button class="small-btn" type="button" id="logoutBtn">退出</button>
+          </div>
         </label>
       </header>
 
@@ -107,7 +110,7 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260608-deadline-comments"></script>
-  <script src="./employee.js?v=20260608-deadline-comments"></script>
+  <script src="./app.js?v=20260609-auth"></script>
+  <script src="./employee.js?v=20260609-auth"></script>
 </body>
 </html>

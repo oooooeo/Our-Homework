@@ -4,6 +4,8 @@ const TrainingStore = (() => {
   const CHANNEL_NAME = "employee-training-updates";
   const ACCENT = "#1f75cb";
   const REFRESH_INTERVAL_MS = 5000;
+  const SESSION_KEY = "training-auth-session";
+  const MANAGER_USERNAME = "supermanager";
 
   let state = {
     employees: [],
@@ -39,6 +41,56 @@ const TrainingStore = (() => {
   function subscribe(listener) {
     listeners.add(listener);
     return () => listeners.delete(listener);
+  }
+
+  function normalizeUsername(value) {
+    return String(value ?? "").trim().toLowerCase();
+  }
+
+  function isValidUsername(value) {
+    const username = normalizeUsername(value);
+    return /^[a-z0-9_-]{2,32}$/.test(username);
+  }
+
+  function getSession() {
+    try {
+      const raw = window.localStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setSession(session) {
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify({
+      ...session,
+      username: normalizeUsername(session.username),
+      savedAt: new Date().toISOString()
+    }));
+  }
+
+  function clearSession() {
+    window.localStorage.removeItem(SESSION_KEY);
+  }
+
+  function isManagerSession() {
+    const session = getSession();
+    return session?.role === "manager" && session.username === MANAGER_USERNAME;
+  }
+
+  function isEmployeeSession() {
+    const session = getSession();
+    return session?.role === "employee" && Boolean(session.username);
+  }
+
+  function sessionEmployee() {
+    const session = getSession();
+    if (!session || session.role !== "employee") return null;
+    return state.employees.find(employee => employee.id === session.employeeId || employee.code === session.username) ?? null;
+  }
+
+  function databaseAuthNotice() {
+    return "如果是首次启用用户名注册，请先在 Supabase SQL Editor 执行用户名登录升级 SQL。";
   }
 
   function isSchemaCacheError(error, keyword) {
@@ -111,6 +163,70 @@ const TrainingStore = (() => {
     if (response.status === 204) return null;
     const text = await response.text();
     return text ? JSON.parse(text) : null;
+  }
+
+  async function lookupEmployeeByUsername(username) {
+    const normalized = normalizeUsername(username);
+    const rows = await request(`/rest/v1/employees?select=id,code,name,department,role&code=eq.${encodeURIComponent(normalized)}&limit=1`);
+    return Array.isArray(rows) ? rows[0] ?? null : null;
+  }
+
+  async function createEmployeeByUsername(username) {
+    const normalized = normalizeUsername(username);
+    const rows = await request("/rest/v1/employees?select=id,code,name,department,role", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        code: normalized,
+        name: normalized,
+        department: "自助注册",
+        role: "员工"
+      })
+    });
+    return Array.isArray(rows) ? rows[0] ?? null : null;
+  }
+
+  async function loginOrRegister(username) {
+    const normalized = normalizeUsername(username);
+    if (!isValidUsername(normalized)) {
+      throw new Error("用户名只能使用 2-32 位小写字母、数字、下划线或短横线。");
+    }
+
+    if (normalized === MANAGER_USERNAME) {
+      setSession({ role: "manager", username: normalized });
+      return { role: "manager", username: normalized, status: "logged-in" };
+    }
+
+    let employee = await lookupEmployeeByUsername(normalized);
+    let status = "logged-in";
+
+    if (!employee) {
+      try {
+        employee = await createEmployeeByUsername(normalized);
+        status = "registered";
+      } catch (error) {
+        if (error.status === 409) {
+          employee = await lookupEmployeeByUsername(normalized);
+          status = "logged-in";
+        } else if (error.status === 401 || error.status === 403 || error.status === 404) {
+          throw new Error(`当前数据库还不允许自助注册。${databaseAuthNotice()}`);
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    if (!employee) {
+      throw new Error("没有找到该用户名，也无法完成注册。请稍后重试。");
+    }
+
+    setSession({
+      role: "employee",
+      username: normalized,
+      employeeId: employee.id
+    });
+    await loadRemoteState({ silent: true });
+    return { role: "employee", username: normalized, employee, status };
   }
 
   async function loadTasksWithSchema() {
@@ -437,6 +553,15 @@ const TrainingStore = (() => {
     getState,
     subscribe,
     loadRemoteState,
+    normalizeUsername,
+    isValidUsername,
+    getSession,
+    setSession,
+    clearSession,
+    isManagerSession,
+    isEmployeeSession,
+    sessionEmployee,
+    loginOrRegister,
     isComplete,
     employeeCompletions,
     taskCompletions,

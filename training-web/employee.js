@@ -1,5 +1,6 @@
 const employeeEls = {
-  employeeSelect: document.querySelector("#employeeSelect"),
+  currentUsername: document.querySelector("#currentUsername"),
+  logoutBtn: document.querySelector("#logoutBtn"),
   employeeDone: document.querySelector("#employeeDone"),
   employeePercent: document.querySelector("#employeePercent"),
   employeeProgress: document.querySelector("#employeeProgress"),
@@ -28,8 +29,17 @@ let knownTaskIds = new Set();
 let hasTrackedTasks = false;
 let toastTimer = null;
 
+function redirectToPortal() {
+  window.location.href = "./index.html";
+}
+
 function renderEmployeePage() {
   const state = TrainingStore.getState();
+
+  if (!TrainingStore.isEmployeeSession()) {
+    redirectToPortal();
+    return;
+  }
 
   if (state.loading) {
     renderLoading();
@@ -41,16 +51,19 @@ function renderEmployeePage() {
     return;
   }
 
-  if (!state.employees.some(employee => employee.id === selectedEmployeeId)) {
-    selectedEmployeeId = state.employees[0]?.id ?? "";
+  const employee = TrainingStore.sessionEmployee();
+  if (!employee) {
+    renderError("当前用户名还没有完成员工身份绑定，请回到入口重新登录。");
+    return;
   }
+  selectedEmployeeId = employee.id;
   if (!state.tasks.some(task => task.id === selectedTaskId)) {
     selectedTaskId = state.tasks[0]?.id ?? "";
   }
 
   trackNewTasks(state);
   renderDatabaseNotice(state);
-  renderEmployeeOptions(state);
+  renderEmployeeIdentity(employee);
   renderEmployeeSummary(state);
   renderNotifications(state);
   renderTaskList(state);
@@ -58,7 +71,7 @@ function renderEmployeePage() {
 }
 
 function renderLoading() {
-  employeeEls.employeeSelect.innerHTML = "";
+  employeeEls.currentUsername.textContent = "加载中";
   employeeEls.employeeDone.textContent = "0/0";
   employeeEls.employeePercent.textContent = "0%";
   TrainingStore.setProgress(employeeEls.employeeProgress, 0);
@@ -89,11 +102,8 @@ function renderDatabaseNotice(state) {
   employeeEls.databaseNotice.textContent = state.databaseNotice;
 }
 
-function renderEmployeeOptions(state) {
-  employeeEls.employeeSelect.innerHTML = state.employees
-    .map(employee => `<option value="${TrainingStore.esc(employee.id)}">${TrainingStore.esc(employee.name)} - ${TrainingStore.esc(employee.department)}</option>`)
-    .join("");
-  employeeEls.employeeSelect.value = selectedEmployeeId;
+function renderEmployeeIdentity(employee) {
+  employeeEls.currentUsername.textContent = `${employee.name} · ${employee.department}`;
 }
 
 function renderEmployeeSummary(state) {
@@ -316,9 +326,9 @@ function showBrowserNotification(task, count) {
   });
 }
 
-employeeEls.employeeSelect.addEventListener("change", event => {
-  selectedEmployeeId = event.target.value;
-  renderEmployeePage();
+employeeEls.logoutBtn.addEventListener("click", () => {
+  TrainingStore.clearSession();
+  redirectToPortal();
 });
 
 employeeEls.taskList.addEventListener("click", event => {

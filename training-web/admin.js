@@ -1,4 +1,6 @@
 const adminEls = {
+  currentUsername: document.querySelector("#currentUsername"),
+  logoutBtn: document.querySelector("#logoutBtn"),
   employeeCount: document.querySelector("#employeeCount"),
   taskCount: document.querySelector("#taskCount"),
   completionCount: document.querySelector("#completionCount"),
@@ -16,8 +18,18 @@ const adminEls = {
 
 let savingTask = false;
 
+function redirectToPortal() {
+  window.location.href = "./index.html";
+}
+
 function renderAdminPage() {
+  if (!TrainingStore.isManagerSession()) {
+    redirectToPortal();
+    return;
+  }
+
   const state = TrainingStore.getState();
+  adminEls.currentUsername.textContent = TrainingStore.getSession()?.username ?? "supermanager";
 
   if (state.loading) {
     renderLoading();
@@ -175,6 +187,11 @@ adminEls.taskForm.addEventListener("submit", async event => {
     submitButton.disabled = false;
     submitButton.lastChild.textContent = " 新增任务";
   }
+});
+
+adminEls.logoutBtn.addEventListener("click", () => {
+  TrainingStore.clearSession();
+  redirectToPortal();
 });
 
 TrainingStore.subscribe(renderAdminPage);

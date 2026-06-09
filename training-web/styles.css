@@ -160,7 +160,8 @@ h2 {
 }
 
 .select-field,
-.task-form label {
+.task-form label,
+.login-form label {
   display: grid;
   gap: 6px;
   color: var(--muted);
@@ -749,6 +750,45 @@ td {
   gap: 14px;
 }
 
+.portal-login {
+  width: min(560px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.login-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.login-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.session-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.session-box strong {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .portal-card {
   min-height: 170px;
   display: grid;
@@ -822,7 +862,8 @@ td {
   .admin-summary,
   .content-grid,
   .admin-grid,
-  .portal-grid {
+  .portal-grid,
+  .login-form {
     grid-template-columns: 1fr;
   }
 
