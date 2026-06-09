@@ -3,6 +3,7 @@
 -- 2. 用户名唯一，密码允许重复
 -- 3. supermanager 后台登录
 -- 4. 后台撤回/删除任务
+-- 5. 后台注销员工，并支持注册时选择部门
 
 create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
@@ -48,6 +49,18 @@ create table if not exists public.training_users (
   created_at timestamptz not null default now()
 );
 
+create or replace function public.training_normalize_department(input_department text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    when input_department in ('人力资源部', '财务部', '市场部', '销售部', '技术部', '运营部')
+      then input_department
+    else '人力资源部'
+  end;
+$$;
+
 alter table public.training_completions
   drop constraint if exists training_completions_task_id_fkey;
 
@@ -78,9 +91,12 @@ create policy "training_users_no_direct_insert"
   to anon, authenticated
   with check (false);
 
+drop function if exists public.training_auth_register(text, text);
+
 create or replace function public.training_auth_register(
   input_username text,
-  input_password text
+  input_password text,
+  input_department text default '人力资源部'
 )
 returns table (
   role text,
@@ -95,6 +111,7 @@ set search_path = public
 as $$
 declare
   normalized_username text := lower(trim(input_username));
+  normalized_department text := public.training_normalize_department(input_department);
   new_employee_id uuid;
 begin
   if normalized_username = 'supermanager' then
@@ -110,7 +127,7 @@ begin
   end if;
 
   insert into public.employees (code, name, department, role)
-  values (normalized_username, normalized_username, '自助注册', '员工')
+  values (normalized_username, normalized_username, normalized_department, '员工')
   returning id into new_employee_id;
 
   insert into public.training_users (username, password_hash, role, employee_id)
@@ -133,6 +150,34 @@ begin
 exception
   when unique_violation then
     raise exception '用户名已存在，请换一个用户名或直接登录';
+end;
+$$;
+
+create or replace function public.training_delete_employee(
+  input_employee_id uuid,
+  input_username text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if lower(trim(input_username)) <> 'supermanager' then
+    raise exception '只有后台账号可以注销员工';
+  end if;
+
+  delete from public.task_comments
+  where employee_id = input_employee_id;
+
+  delete from public.training_completions
+  where employee_id = input_employee_id;
+
+  delete from public.training_users
+  where employee_id = input_employee_id;
+
+  delete from public.employees
+  where id = input_employee_id;
 end;
 $$;
 
@@ -214,6 +259,24 @@ begin
 end;
 $$;
 
-grant execute on function public.training_auth_register(text, text) to anon, authenticated;
+grant execute on function public.training_normalize_department(text) to anon, authenticated;
+grant execute on function public.training_auth_register(text, text, text) to anon, authenticated;
 grant execute on function public.training_auth_login(text, text) to anon, authenticated;
 grant execute on function public.training_delete_task(uuid, text) to anon, authenticated;
+grant execute on function public.training_delete_employee(uuid, text) to anon, authenticated;
+
+do $$
+declare
+  zhangming_employee_id uuid;
+begin
+  select id
+  into zhangming_employee_id
+  from public.employees
+  where lower(code) = 'zhangming' or lower(name) = 'zhangming'
+  limit 1;
+
+  if zhangming_employee_id is not null then
+    perform public.training_delete_employee(zhangming_employee_id, 'supermanager');
+  end if;
+end;
+$$;

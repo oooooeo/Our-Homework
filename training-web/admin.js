@@ -18,6 +18,7 @@ const adminEls = {
 
 let savingTask = false;
 let deletingTaskId = "";
+let deletingEmployeeId = "";
 
 function redirectToPortal() {
   window.location.href = "./index.html";
@@ -62,13 +63,13 @@ function renderLoading() {
   adminEls.taskCount.textContent = "0";
   adminEls.completionCount.textContent = "0";
   TrainingStore.setProgress(adminEls.overallProgress, 0);
-  adminEls.employeeRows.innerHTML = `<tr><td colspan="5" class="empty-table">正在加载培训数据...</td></tr>`;
+  adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训数据...</td></tr>`;
   adminEls.taskRows.innerHTML = `<tr><td colspan="5" class="empty-table">正在加载培训任务...</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">正在连接 Supabase。</div>`;
 }
 
 function renderError(message) {
-  adminEls.employeeRows.innerHTML = `<tr><td colspan="5" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
+  adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.taskRows.innerHTML = `<tr><td colspan="5" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
 }
@@ -97,6 +98,11 @@ function renderEmployeeRows(state) {
           </div>
         </td>
         <td>${TrainingStore.esc(TrainingStore.formatTime(last?.completedAt))}</td>
+        <td>
+          <button class="danger-btn compact-btn" type="button" data-delete-employee="${TrainingStore.esc(employee.id)}" ${deletingEmployeeId === employee.id ? "disabled" : ""}>
+            ${deletingEmployeeId === employee.id ? "注销中" : "注销"}
+          </button>
+        </td>
       </tr>
     `;
   }).join("");
@@ -216,6 +222,31 @@ adminEls.taskRows.addEventListener("click", async event => {
     adminEls.taskFormMessage.classList.add("is-error");
   } finally {
     deletingTaskId = "";
+    renderAdminPage();
+  }
+});
+
+adminEls.employeeRows.addEventListener("click", async event => {
+  const trigger = event.target.closest("[data-delete-employee]");
+  if (!trigger || deletingEmployeeId) return;
+
+  const employeeId = trigger.dataset.deleteEmployee;
+  const state = TrainingStore.getState();
+  const employee = state.employees.find(item => item.id === employeeId);
+  const message = `确认注销员工“${employee?.name ?? "未知员工"}”吗？该员工账号、完成记录和评论都会被删除。`;
+  if (!window.confirm(message)) return;
+
+  deletingEmployeeId = employeeId;
+  renderAdminPage();
+
+  try {
+    await TrainingStore.deleteEmployee(employeeId);
+  } catch (error) {
+    console.error(error);
+    adminEls.taskFormMessage.textContent = error.message || "注销员工失败，请稍后重试。";
+    adminEls.taskFormMessage.classList.add("is-error");
+  } finally {
+    deletingEmployeeId = "";
     renderAdminPage();
   }
 });

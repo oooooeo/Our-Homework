@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="./training-web/">
   <title>员工培训进度系统入口</title>
-  <link rel="stylesheet" href="./styles.css?v=20260609-unified-auth">
+  <link rel="stylesheet" href="./styles.css?v=20260610-employee-admin">
 </head>
 <body>
   <div class="portal-shell">
@@ -60,6 +60,18 @@
             </label>
 
             <label class="auth-field">
+              <span>部门</span>
+              <select id="registerDepartment" required>
+                <option value="人力资源部">人力资源部</option>
+                <option value="财务部">财务部</option>
+                <option value="市场部">市场部</option>
+                <option value="销售部">销售部</option>
+                <option value="技术部">技术部</option>
+                <option value="运营部">运营部</option>
+              </select>
+            </label>
+
+            <label class="auth-field">
               <span>密码</span>
               <span class="password-field">
                 <input id="registerPassword" type="password" autocomplete="new-password" minlength="6" required>
@@ -89,7 +101,7 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260609-unified-auth"></script>
-  <script src="./portal.js?v=20260609-unified-auth"></script>
+  <script src="./app.js?v=20260610-employee-admin"></script>
+  <script src="./portal.js?v=20260610-employee-admin"></script>
 </body>
 </html>

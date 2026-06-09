@@ -6,6 +6,7 @@ const TrainingStore = (() => {
   const REFRESH_INTERVAL_MS = 5000;
   const SESSION_KEY = "training-auth-session";
   const MANAGER_USERNAME = "supermanager";
+  const DEPARTMENTS = ["人力资源部", "财务部", "市场部", "销售部", "技术部", "运营部"];
 
   let state = {
     employees: [],
@@ -93,6 +94,10 @@ const TrainingStore = (() => {
     return "如果是首次启用密码登录，请先在 Supabase SQL Editor 执行密码登录升级 SQL。";
   }
 
+  function employeeAdminNotice() {
+    return "请先在 Supabase SQL Editor 执行 training-web/supabase-migration-20260610-employee-department-delete.sql。";
+  }
+
   function isSchemaCacheError(error, keyword) {
     const message = String(error?.message ?? "").toLowerCase();
     return message.includes(String(keyword).toLowerCase()) && (
@@ -169,6 +174,10 @@ const TrainingStore = (() => {
     return String(value ?? "").length >= 6;
   }
 
+  function normalizeDepartment(value) {
+    return DEPARTMENTS.includes(value) ? value : DEPARTMENTS[0];
+  }
+
   function normalizeAuthResult(row, status) {
     const role = row?.role;
     const username = normalizeUsername(row?.username);
@@ -189,13 +198,14 @@ const TrainingStore = (() => {
     };
   }
 
-  async function callAuthFunction(name, username, password) {
+  async function callAuthFunction(name, username, password, extraPayload = {}) {
     const rows = await request(`/rest/v1/rpc/${name}`, {
       method: "POST",
       headers: { Prefer: "return=representation" },
       body: JSON.stringify({
         input_username: normalizeUsername(username),
-        input_password: String(password ?? "")
+        input_password: String(password ?? ""),
+        ...extraPayload
       })
     });
     return Array.isArray(rows) ? rows[0] ?? null : rows;
@@ -223,8 +233,9 @@ const TrainingStore = (() => {
     }
   }
 
-  async function register(username, password) {
+  async function register(username, password, department) {
     const normalized = normalizeUsername(username);
+    const normalizedDepartment = normalizeDepartment(department);
     if (!isValidUsername(normalized)) {
       throw new Error("用户名只能使用 2-32 位小写字母、数字、下划线或短横线。");
     }
@@ -233,11 +244,16 @@ const TrainingStore = (() => {
     }
 
     try {
-      const row = await callAuthFunction("training_auth_register", normalized, password);
+      const row = await callAuthFunction("training_auth_register", normalized, password, {
+        input_department: normalizedDepartment
+      });
       if (!row) throw new Error("注册失败，请稍后重试。");
       await loadRemoteState({ silent: true });
       return normalizeAuthResult(row, "registered");
     } catch (error) {
+      if (String(error.message ?? "").includes("input_department")) {
+        throw new Error(`当前数据库还没有启用部门注册。${employeeAdminNotice()}`);
+      }
       if (error.status === 401 || error.status === 403 || error.status === 404) {
         throw new Error(`当前数据库还不支持密码注册。${databaseAuthNotice()}`);
       }
@@ -426,6 +442,32 @@ const TrainingStore = (() => {
     await loadRemoteState({ silent: true });
   }
 
+  async function deleteEmployee(employeeId) {
+    if (!employeeId) return;
+    const session = getSession();
+    if (!isManagerSession()) {
+      throw new Error("只有后台账号可以注销员工。");
+    }
+
+    try {
+      await request("/rest/v1/rpc/training_delete_employee", {
+        method: "POST",
+        body: JSON.stringify({
+          input_employee_id: employeeId,
+          input_username: session.username
+        })
+      });
+    } catch (error) {
+      if (error.status === 401 || error.status === 403 || error.status === 404) {
+        throw new Error(`当前数据库还没有启用后台注销员工。${employeeAdminNotice()}`);
+      }
+      throw error;
+    }
+
+    channel?.postMessage({ type: "state-updated" });
+    await loadRemoteState({ silent: true });
+  }
+
   async function createComment({ taskId, employeeId, body }) {
     const trimmedBody = String(body ?? "").trim();
     if (!taskId || !employeeId || !trimmedBody) return null;
@@ -594,6 +636,7 @@ const TrainingStore = (() => {
     getSession,
     setSession,
     clearSession,
+    departments: DEPARTMENTS,
     isManagerSession,
     isEmployeeSession,
     sessionEmployee,
@@ -606,6 +649,7 @@ const TrainingStore = (() => {
     completeTask,
     createTask,
     deleteTask,
+    deleteEmployee,
     createComment,
     percent,
     formatTime,

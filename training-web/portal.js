@@ -5,6 +5,7 @@ const portalEls = {
   loginUsername: document.querySelector("#loginUsername"),
   loginPassword: document.querySelector("#loginPassword"),
   registerUsername: document.querySelector("#registerUsername"),
+  registerDepartment: document.querySelector("#registerDepartment"),
   registerPassword: document.querySelector("#registerPassword"),
   message: document.querySelector("#loginMessage"),
   registerSwitch: document.querySelector("#registerSwitch"),
@@ -104,10 +105,11 @@ portalEls.loginForm.addEventListener("submit", event => {
 portalEls.registerForm.addEventListener("submit", event => {
   event.preventDefault();
   const username = portalEls.registerUsername.value;
+  const department = portalEls.registerDepartment.value;
   const password = portalEls.registerPassword.value;
   void handleAuth(
     portalEls.registerForm,
-    () => TrainingStore.register(username, password),
+    () => TrainingStore.register(username, password, department),
     "注册成功，正在进入员工端。"
   );
 });

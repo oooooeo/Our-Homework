@@ -394,6 +394,13 @@ textarea:focus {
   cursor: not-allowed;
 }
 
+.compact-btn {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .article-body {
   min-height: 360px;
   padding: 18px;
@@ -839,6 +846,12 @@ td {
 }
 
 .auth-field input {
+  height: 46px;
+  border-radius: 7px;
+  font-size: 16px;
+}
+
+.auth-field select {
   height: 46px;
   border-radius: 7px;
   font-size: 16px;
