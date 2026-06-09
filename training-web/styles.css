@@ -20,6 +20,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -738,29 +742,66 @@ td {
   display: grid;
   place-items: center;
   padding: 28px;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(31, 117, 203, 0.16), transparent 30%),
+    radial-gradient(circle at 82% 0%, rgba(32, 128, 93, 0.12), transparent 28%),
+    var(--bg);
 }
 
 .portal-main {
-  width: min(820px, 100%);
+  width: min(520px, 100%);
 }
 
-.portal-brand {
-  margin-bottom: 26px;
+.portal-auth-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 22px 60px rgba(30, 41, 59, 0.14);
 }
 
-.portal-hero {
-  margin-bottom: 20px;
+.portal-auth-banner {
+  min-height: 150px;
+  display: flex;
+  align-items: flex-start;
+  padding: 26px;
+  background:
+    linear-gradient(135deg, rgba(31, 117, 203, 0.96), rgba(42, 181, 236, 0.92) 54%, rgba(143, 223, 218, 0.92)),
+    var(--accent);
+  color: #fff;
 }
 
-.portal-hero h1 {
-  font-size: 34px;
-  margin-bottom: 8px;
+.portal-auth-banner .brand {
+  margin-bottom: 0;
 }
 
-.portal-hero p {
+.portal-auth-banner .brand-mark {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+}
+
+.portal-auth-banner .brand-subtitle {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.portal-auth-body {
+  padding: 26px;
+}
+
+.auth-title {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.auth-title h1 {
+  font-size: 26px;
+}
+
+.auth-title p {
   margin: 0;
   color: var(--muted);
-  font-size: 16px;
+  line-height: 1.5;
 }
 
 .portal-grid {
@@ -786,16 +827,98 @@ td {
 
 .auth-form {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
 }
 
 .auth-form .primary-btn {
   width: 100%;
 }
 
+.auth-field {
+  gap: 7px;
+}
+
+.auth-field input {
+  height: 46px;
+  border-radius: 7px;
+  font-size: 16px;
+}
+
+.password-field {
+  position: relative;
+  display: block;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  background: #f1f4f8;
+  color: var(--accent-strong);
+}
+
+.eye-icon {
+  position: relative;
+  width: 19px;
+  height: 12px;
+  border: 1.8px solid currentColor;
+  border-radius: 999px / 80%;
+}
+
+.eye-icon::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.eye-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 2px;
+  border-radius: 99px;
+  background: currentColor;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-38deg);
+}
+
+.password-toggle.is-visible .eye-icon::after {
+  opacity: 1;
+}
+
+.portal-submit {
+  min-height: 48px;
+  margin-top: 4px;
+  font-size: 17px;
+}
+
 .portal-message {
-  margin-top: 12px;
+  min-height: 22px;
+  margin-top: 14px;
 }
 
 .portal-login {
@@ -819,6 +942,30 @@ td {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.auth-switch {
+  min-height: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.link-btn {
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 5px;
+}
+
+.link-btn:hover {
+  background: var(--soft-blue);
 }
 
 .session-box {

@@ -4,7 +4,8 @@
 -- 3. supermanager 后台登录
 -- 4. 后台撤回/删除任务
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 alter table public.training_tasks
   add column if not exists due_at timestamptz;
@@ -115,7 +116,7 @@ begin
   insert into public.training_users (username, password_hash, role, employee_id)
   values (
     normalized_username,
-    crypt(input_password, gen_salt('bf')),
+    extensions.crypt(input_password, extensions.gen_salt('bf')),
     'employee',
     new_employee_id
   );
@@ -178,7 +179,7 @@ begin
     raise exception '用户名不存在，请先注册';
   end if;
 
-  if found_user.password_hash <> crypt(input_password, found_user.password_hash) then
+  if found_user.password_hash <> extensions.crypt(input_password, found_user.password_hash) then
     raise exception '密码不正确';
   end if;
 
