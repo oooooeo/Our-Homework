@@ -1,6 +1,13 @@
 const employeeEls = {
   currentUsername: document.querySelector("#currentUsername"),
   logoutBtn: document.querySelector("#logoutBtn"),
+  feedbackOpenBtn: document.querySelector("#feedbackOpenBtn"),
+  feedbackDrawer: document.querySelector("#feedbackDrawer"),
+  feedbackOptions: document.querySelector("#feedbackOptions"),
+  feedbackForm: document.querySelector("#feedbackForm"),
+  feedbackBody: document.querySelector("#feedbackBody"),
+  feedbackTask: document.querySelector("#feedbackTask"),
+  feedbackMessage: document.querySelector("#feedbackMessage"),
   employeeDone: document.querySelector("#employeeDone"),
   employeePercent: document.querySelector("#employeePercent"),
   employeeProgress: document.querySelector("#employeeProgress"),
@@ -25,8 +32,10 @@ const NEW_TASK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 let selectedEmployeeId = "";
 let selectedTaskId = "";
 let taskMode = "required";
+let feedbackType = "like";
 let saving = false;
 let savingComment = false;
+let savingFeedback = false;
 let knownTaskIds = new Set();
 let hasTrackedTasks = false;
 let toastTimer = null;
@@ -69,6 +78,7 @@ function renderEmployeePage() {
   renderEmployeeIdentity(employee);
   renderEmployeeSummary(state, employee);
   renderNotifications(state, employee);
+  renderFeedbackTaskOptions(state);
   renderTaskModeControls();
   renderTaskList(state, employee);
   renderArticle(state.tasks.find(task => task.id === selectedTaskId), state);
@@ -87,6 +97,7 @@ function renderLoading() {
   employeeEls.articleBody.innerHTML = `<p class="empty-state">正在连接 Supabase。</p>`;
   employeeEls.completeTaskBtn.disabled = true;
   renderComments(null, TrainingStore.getState());
+  renderFeedbackTaskOptions(TrainingStore.getState());
 }
 
 function renderError(message) {
@@ -98,6 +109,7 @@ function renderError(message) {
   employeeEls.articleBody.innerHTML = `<p class="empty-state">${TrainingStore.esc(message)}</p>`;
   employeeEls.completeTaskBtn.disabled = true;
   renderComments(null, TrainingStore.getState());
+  renderFeedbackTaskOptions(TrainingStore.getState());
 }
 
 function renderDatabaseNotice(state) {
@@ -108,6 +120,20 @@ function renderDatabaseNotice(state) {
 
 function renderEmployeeIdentity(employee) {
   employeeEls.currentUsername.textContent = `${employee.name} · ${employee.department}`;
+}
+
+function renderFeedbackTaskOptions(state) {
+  if (!employeeEls.feedbackTask) return;
+  const currentValue = employeeEls.feedbackTask.value || selectedTaskId;
+  employeeEls.feedbackTask.innerHTML = `
+    <option value="">不关联具体任务</option>
+    ${state.tasks.map(task => `
+      <option value="${TrainingStore.esc(task.id)}">${TrainingStore.esc(task.title)}</option>
+    `).join("")}
+  `;
+  if ([...employeeEls.feedbackTask.options].some(option => option.value === currentValue)) {
+    employeeEls.feedbackTask.value = currentValue;
+  }
 }
 
 function visibleTasksForMode(state, employee) {
@@ -357,9 +383,41 @@ function showBrowserNotification(task, count) {
   });
 }
 
+function openFeedbackDrawer() {
+  employeeEls.feedbackDrawer.hidden = false;
+  employeeEls.feedbackMessage.textContent = "";
+  employeeEls.feedbackMessage.classList.remove("is-error", "is-success");
+  if (selectedTaskId) employeeEls.feedbackTask.value = selectedTaskId;
+  employeeEls.feedbackBody.focus();
+}
+
+function closeFeedbackDrawer() {
+  employeeEls.feedbackDrawer.hidden = true;
+}
+
+function renderFeedbackType() {
+  document.querySelectorAll("[data-feedback-type]").forEach(button => {
+    button.classList.toggle("is-active", button.dataset.feedbackType === feedbackType);
+  });
+}
+
 employeeEls.logoutBtn.addEventListener("click", () => {
   TrainingStore.clearSession();
   redirectToPortal();
+});
+
+employeeEls.feedbackOpenBtn.addEventListener("click", openFeedbackDrawer);
+
+document.querySelectorAll("[data-feedback-close]").forEach(trigger => {
+  trigger.addEventListener("click", closeFeedbackDrawer);
+});
+
+employeeEls.feedbackOptions.addEventListener("click", event => {
+  const trigger = event.target.closest("[data-feedback-type]");
+  if (!trigger) return;
+  feedbackType = trigger.dataset.feedbackType;
+  renderFeedbackType();
+  employeeEls.feedbackBody.focus();
 });
 
 employeeEls.taskList.addEventListener("click", event => {
@@ -446,5 +504,39 @@ employeeEls.commentForm.addEventListener("submit", async event => {
   }
 });
 
+employeeEls.feedbackForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (savingFeedback) return;
+
+  const employee = TrainingStore.sessionEmployee();
+  savingFeedback = true;
+  employeeEls.feedbackMessage.textContent = "";
+  employeeEls.feedbackMessage.classList.remove("is-error", "is-success");
+  employeeEls.feedbackForm.querySelector("button[type='submit']").disabled = true;
+
+  try {
+    const feedback = await TrainingStore.createFeedback({
+      employeeId: employee?.id,
+      taskId: employeeEls.feedbackTask.value,
+      type: feedbackType,
+      body: employeeEls.feedbackBody.value
+    });
+    if (feedback) {
+      employeeEls.feedbackBody.value = "";
+      employeeEls.feedbackMessage.textContent = "反馈已提交。";
+      employeeEls.feedbackMessage.classList.add("is-success");
+      window.setTimeout(closeFeedbackDrawer, 700);
+    }
+  } catch (error) {
+    console.error(error);
+    employeeEls.feedbackMessage.textContent = error.message || "反馈提交失败，请稍后重试。";
+    employeeEls.feedbackMessage.classList.add("is-error");
+  } finally {
+    savingFeedback = false;
+    employeeEls.feedbackForm.querySelector("button[type='submit']").disabled = false;
+  }
+});
+
 TrainingStore.subscribe(renderEmployeePage);
+renderFeedbackType();
 renderEmployeePage();

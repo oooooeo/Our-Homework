@@ -10,6 +10,7 @@
 - 部门登记：员工注册时需要选择部门，当前支持 6 个常见部门。
 - 新增任务：后台可以新增“培训文章”类任务，设置完成截止时间，并定向选择目标部门。
 - 学习广场：员工除了完成本部门必修任务，也可以自主学习其他部门任务。
+- 员工反馈：员工端提供反馈入口，可提交满意、不满意和建议类反馈。
 - 撤回任务：后台可以撤回/删除误发布任务，相关完成记录和评论会同步删除。
 - 注销员工：后台可以注销离职员工，相关账号、完成记录和评论会同步删除。
 - 员工提醒：员工端会显示新增任务、即将截止任务、逾期任务提醒。
@@ -41,6 +42,7 @@
 - `training_tasks`
 - `training_completions`
 - `task_comments`
+- `training_feedback`
 
 如果页面提示“数据库还没有启用任务截止时间/任务评论区”，需要在 Supabase 的 SQL Editor 中执行：
 
@@ -66,6 +68,12 @@ training-web/supabase-migration-20260610-employee-department-delete.sql
 training-web/supabase-migration-20260611-target-departments.sql
 ```
 
-执行完成后，刷新总入口、员工端和后台端，密码登录、撤回任务、部门登记、注销员工、定向发布和学习广场会启用。
+如果需要启用“员工反馈”，需要在 Supabase 的 SQL Editor 中执行：
+
+```text
+training-web/supabase-migration-20260611-feedback.sql
+```
+
+执行完成后，刷新总入口、员工端和后台端，密码登录、撤回任务、部门登记、注销员工、定向发布、学习广场和员工反馈会启用。
 
 当前是轻量版本，登录状态保存在浏览器本地，密码校验由 Supabase 数据库函数完成。正式用于培训时，建议继续接入 Supabase Auth 和更完整的后台权限体系。

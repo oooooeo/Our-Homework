@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训任务</title>
-  <link rel="stylesheet" href="./styles.css?v=20260611-target-departments">
+  <link rel="stylesheet" href="./styles.css?v=20260611-feedback">
 </head>
 <body>
   <div class="app-shell">
@@ -31,13 +31,22 @@
           <h1>员工培训任务</h1>
           <p class="page-meta">完成分配给当前账号的培训任务。</p>
         </div>
-        <label class="select-field">
-          <span>当前用户</span>
-          <div class="session-box">
-            <strong id="currentUsername">未登录</strong>
-            <button class="small-btn" type="button" id="logoutBtn">退出</button>
-          </div>
-        </label>
+        <div class="employee-head-actions">
+          <button class="feedback-entry-btn" type="button" id="feedbackOpenBtn">
+            <span class="feedback-entry-icon">↗</span>
+            <span>
+              <strong>反馈</strong>
+              <small>满意 / 不满意 / 建议</small>
+            </span>
+          </button>
+          <label class="select-field">
+            <span>当前用户</span>
+            <div class="session-box">
+              <strong id="currentUsername">未登录</strong>
+              <button class="small-btn" type="button" id="logoutBtn">退出</button>
+            </div>
+          </label>
+        </div>
       </header>
 
       <div class="system-notice" id="databaseNotice" hidden></div>
@@ -110,7 +119,60 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260611-target-departments"></script>
-  <script src="./employee.js?v=20260611-target-departments"></script>
+  <div class="feedback-drawer" id="feedbackDrawer" hidden>
+    <div class="feedback-backdrop" data-feedback-close></div>
+    <section class="feedback-panel" aria-label="反馈">
+      <div class="feedback-panel-head">
+        <div>
+          <h2>反馈</h2>
+          <p>选择反馈类型，提交后会同步保存。</p>
+        </div>
+        <button class="small-btn" type="button" data-feedback-close>关闭</button>
+      </div>
+
+      <div class="feedback-options" id="feedbackOptions">
+        <button class="feedback-option is-active" type="button" data-feedback-type="like">
+          <span class="feedback-face">☺</span>
+          <span>
+            <strong>我喜欢一些内容</strong>
+            <small>感谢你的反馈，我们会保留有效做法。</small>
+          </span>
+        </button>
+        <button class="feedback-option" type="button" data-feedback-type="dislike">
+          <span class="feedback-face">☹</span>
+          <span>
+            <strong>我不喜欢一些内容</strong>
+            <small>告诉我们问题，方便后续修复。</small>
+          </span>
+        </button>
+        <button class="feedback-option" type="button" data-feedback-type="suggestion">
+          <span class="feedback-face">✎</span>
+          <span>
+            <strong>我有一个建议</strong>
+            <small>对功能或体验的想法都可以写下来。</small>
+          </span>
+        </button>
+      </div>
+
+      <form class="feedback-form" id="feedbackForm">
+        <label>
+          <span>反馈内容</span>
+          <textarea id="feedbackBody" rows="4" placeholder="请写下你的具体反馈..." required></textarea>
+        </label>
+        <label>
+          <span>关联任务</span>
+          <select id="feedbackTask"></select>
+        </label>
+        <div class="form-message" id="feedbackMessage" aria-live="polite"></div>
+        <button class="primary-btn" type="submit">
+          <span>↵</span>
+          提交反馈
+        </button>
+      </form>
+    </section>
+  </div>
+
+  <script src="./app.js?v=20260611-feedback"></script>
+  <script src="./employee.js?v=20260611-feedback"></script>
 </body>
 </html>
