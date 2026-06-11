@@ -255,10 +255,11 @@ textarea:focus {
 }
 
 .admin-summary {
-  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .metric {
+  min-width: 0;
   min-height: 76px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -268,7 +269,7 @@ textarea:focus {
 }
 
 .metric.wide {
-  min-width: 260px;
+  grid-column: span 2;
 }
 
 .metric-label {
@@ -301,6 +302,7 @@ textarea:focus {
 
 .progress-track {
   width: 100%;
+  min-width: 0;
   height: 10px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -1530,7 +1532,7 @@ td {
   }
 
   .metric.wide {
-    min-width: 0;
+    grid-column: auto;
   }
 }
 
