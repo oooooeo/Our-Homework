@@ -5,6 +5,11 @@ const employeeEls = {
   feedbackDrawer: document.querySelector("#feedbackDrawer"),
   feedbackOptions: document.querySelector("#feedbackOptions"),
   feedbackForm: document.querySelector("#feedbackForm"),
+  feedbackTitleField: document.querySelector("#feedbackTitleField"),
+  feedbackTitle: document.querySelector("#feedbackTitle"),
+  feedbackTopicField: document.querySelector("#feedbackTopicField"),
+  feedbackTopic: document.querySelector("#feedbackTopic"),
+  feedbackBodyLabel: document.querySelector("#feedbackBodyLabel"),
   feedbackBody: document.querySelector("#feedbackBody"),
   feedbackTask: document.querySelector("#feedbackTask"),
   feedbackMessage: document.querySelector("#feedbackMessage"),
@@ -13,6 +18,9 @@ const employeeEls = {
   employeeProgress: document.querySelector("#employeeProgress"),
   databaseNotice: document.querySelector("#databaseNotice"),
   notificationList: document.querySelector("#notificationList"),
+  questionSearch: document.querySelector("#questionSearch"),
+  questionStatusFilter: document.querySelector("#questionStatusFilter"),
+  questionList: document.querySelector("#questionList"),
   taskPanelTitle: document.querySelector("#taskPanelTitle"),
   taskList: document.querySelector("#taskList"),
   articleTitle: document.querySelector("#articleTitle"),
@@ -79,6 +87,7 @@ function renderEmployeePage() {
   renderEmployeeSummary(state, employee);
   renderNotifications(state, employee);
   renderFeedbackTaskOptions(state);
+  renderQuestionList(state);
   renderTaskModeControls();
   renderTaskList(state, employee);
   renderArticle(state.tasks.find(task => task.id === selectedTaskId), state);
@@ -98,6 +107,7 @@ function renderLoading() {
   employeeEls.completeTaskBtn.disabled = true;
   renderComments(null, TrainingStore.getState());
   renderFeedbackTaskOptions(TrainingStore.getState());
+  renderQuestionList(TrainingStore.getState());
 }
 
 function renderError(message) {
@@ -110,6 +120,7 @@ function renderError(message) {
   employeeEls.completeTaskBtn.disabled = true;
   renderComments(null, TrainingStore.getState());
   renderFeedbackTaskOptions(TrainingStore.getState());
+  renderQuestionList(TrainingStore.getState());
 }
 
 function renderDatabaseNotice(state) {
@@ -134,6 +145,69 @@ function renderFeedbackTaskOptions(state) {
   if ([...employeeEls.feedbackTask.options].some(option => option.value === currentValue)) {
     employeeEls.feedbackTask.value = currentValue;
   }
+}
+
+function questionStatusLabel(status) {
+  return {
+    open: "待回复",
+    answered: "已回复",
+    resolved: "已解决"
+  }[status] ?? "待回复";
+}
+
+function renderQuestionList(state) {
+  if (!employeeEls.questionList) return;
+  if (state.schema.questions === false) {
+    employeeEls.questionList.innerHTML = `<div class="empty-state">公开问题库需要先执行 Supabase 升级 SQL。</div>`;
+    return;
+  }
+
+  const query = TrainingStore.normalizeUsername(employeeEls.questionSearch.value).replace(/_/g, " ");
+  const status = employeeEls.questionStatusFilter.value;
+  const employees = new Map(state.employees.map(employee => [employee.id, employee]));
+  const tasks = new Map(state.tasks.map(task => [task.id, task]));
+  const rows = state.questions.filter(item => {
+    const employee = employees.get(item.employeeId);
+    const task = tasks.get(item.taskId);
+    const haystack = [
+      item.title,
+      item.body,
+      item.answerBody,
+      item.topic,
+      employee?.name,
+      employee?.department,
+      task?.title
+    ].join(" ").toLowerCase();
+    return (status === "all" || item.status === status) && (!query || haystack.includes(query));
+  });
+
+  employeeEls.questionList.innerHTML = rows.length
+    ? rows.map(item => {
+      const employee = employees.get(item.employeeId);
+      const task = tasks.get(item.taskId);
+      return `
+        <article class="public-question-item">
+          <div class="public-question-head">
+            <span class="question-status is-${TrainingStore.esc(item.status)}">${TrainingStore.esc(questionStatusLabel(item.status))}</span>
+            <strong>${TrainingStore.esc(item.title)}</strong>
+          </div>
+          <div class="public-question-meta">
+            <span>${TrainingStore.esc(item.topic)}</span>
+            <span>${TrainingStore.esc(employee?.name ?? "未知员工")} · ${TrainingStore.esc(employee?.department ?? "未知部门")}</span>
+            <span>${TrainingStore.esc(TrainingStore.formatTime(item.createdAt))}</span>
+            <span>${TrainingStore.esc(task ? `关联：${task.title}` : "未关联任务")}</span>
+          </div>
+          <div class="public-question-body">${TrainingStore.esc(item.body)}</div>
+          ${item.answerBody ? `
+            <div class="public-question-answer">
+              <strong>后台回复</strong>
+              <p>${TrainingStore.esc(item.answerBody)}</p>
+            </div>
+          ` : ""}
+        </article>
+      `;
+    }).join("")
+    : `<div class="empty-state">没有匹配的公开问题。</div>`;
 }
 
 function visibleTasksForMode(state, employee) {
@@ -399,6 +473,18 @@ function renderFeedbackType() {
   document.querySelectorAll("[data-feedback-type]").forEach(button => {
     button.classList.toggle("is-active", button.dataset.feedbackType === feedbackType);
   });
+  const questionMode = feedbackType === "question";
+  employeeEls.feedbackTitleField.hidden = !questionMode;
+  employeeEls.feedbackTopicField.hidden = !questionMode;
+  employeeEls.feedbackTitle.required = questionMode;
+  employeeEls.feedbackTopic.required = questionMode;
+  employeeEls.feedbackBodyLabel.textContent = questionMode ? "问题详情" : "反馈内容";
+  employeeEls.feedbackBody.placeholder = questionMode
+    ? "请补充问题背景、你已尝试的方法或希望得到的帮助..."
+    : "请写下你的具体反馈...";
+  employeeEls.feedbackForm.querySelector("button[type='submit']").lastChild.textContent = questionMode
+    ? " 提交问题"
+    : " 提交反馈";
 }
 
 employeeEls.logoutBtn.addEventListener("click", () => {
@@ -418,6 +504,14 @@ employeeEls.feedbackOptions.addEventListener("click", event => {
   feedbackType = trigger.dataset.feedbackType;
   renderFeedbackType();
   employeeEls.feedbackBody.focus();
+});
+
+employeeEls.questionSearch.addEventListener("input", () => {
+  renderQuestionList(TrainingStore.getState());
+});
+
+employeeEls.questionStatusFilter.addEventListener("change", () => {
+  renderQuestionList(TrainingStore.getState());
 });
 
 employeeEls.taskList.addEventListener("click", event => {
@@ -515,18 +609,31 @@ employeeEls.feedbackForm.addEventListener("submit", async event => {
   employeeEls.feedbackForm.querySelector("button[type='submit']").disabled = true;
 
   try {
-    const feedback = await TrainingStore.createFeedback({
-      employeeId: employee?.id,
-      taskId: employeeEls.feedbackTask.value,
-      type: feedbackType,
-      body: employeeEls.feedbackBody.value
-    });
-    if (feedback) {
+    if (feedbackType === "question") {
+      const question = await TrainingStore.createQuestion({
+        employeeId: employee?.id,
+        taskId: employeeEls.feedbackTask.value,
+        title: employeeEls.feedbackTitle.value,
+        body: employeeEls.feedbackBody.value,
+        topic: employeeEls.feedbackTopic.value
+      });
+      if (!question) return;
+      employeeEls.feedbackTitle.value = "";
+      employeeEls.feedbackBody.value = "";
+      employeeEls.feedbackMessage.textContent = "问题已提交，并已进入公开问题库。";
+    } else {
+      const feedback = await TrainingStore.createFeedback({
+        employeeId: employee?.id,
+        taskId: employeeEls.feedbackTask.value,
+        type: feedbackType,
+        body: employeeEls.feedbackBody.value
+      });
+      if (!feedback) return;
       employeeEls.feedbackBody.value = "";
       employeeEls.feedbackMessage.textContent = "反馈已提交。";
-      employeeEls.feedbackMessage.classList.add("is-success");
-      window.setTimeout(closeFeedbackDrawer, 700);
     }
+    employeeEls.feedbackMessage.classList.add("is-success");
+    window.setTimeout(closeFeedbackDrawer, 700);
   } catch (error) {
     console.error(error);
     employeeEls.feedbackMessage.textContent = error.message || "反馈提交失败，请稍后重试。";

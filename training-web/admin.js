@@ -6,8 +6,11 @@ const adminEls = {
   completionCount: document.querySelector("#completionCount"),
   overallProgress: document.querySelector("#overallProgress"),
   feedbackCount: document.querySelector("#feedbackCount"),
+  questionCount: document.querySelector("#questionCount"),
   feedbackInboxCount: document.querySelector("#feedbackInboxCount"),
+  questionInboxCount: document.querySelector("#questionInboxCount"),
   feedbackRows: document.querySelector("#feedbackRows"),
+  questionRows: document.querySelector("#questionRows"),
   employeeRows: document.querySelector("#employeeRows"),
   taskRows: document.querySelector("#taskRows"),
   taskForm: document.querySelector("#taskForm"),
@@ -17,12 +20,14 @@ const adminEls = {
   newTaskContent: document.querySelector("#newTaskContent"),
   taskFormMessage: document.querySelector("#taskFormMessage"),
   databaseNotice: document.querySelector("#databaseNotice"),
+  questionFormMessage: document.querySelector("#questionFormMessage"),
   recentList: document.querySelector("#recentList")
 };
 
 let savingTask = false;
 let deletingTaskId = "";
 let deletingEmployeeId = "";
+let answeringQuestionId = "";
 
 function renderDepartmentOptions() {
   if (!adminEls.newTaskDepartments) return;
@@ -65,7 +70,9 @@ function renderAdminPage() {
   adminEls.taskCount.textContent = String(state.tasks.length);
   adminEls.completionCount.textContent = String(completionCount);
   adminEls.feedbackCount.textContent = String(state.feedback.length);
+  adminEls.questionCount.textContent = String(state.questions.length);
   adminEls.feedbackInboxCount.textContent = `${state.feedback.length} 条反馈`;
+  adminEls.questionInboxCount.textContent = `${state.questions.length} 个问题`;
   TrainingStore.setProgress(adminEls.overallProgress, overallPct);
 
   renderDatabaseNotice(state);
@@ -73,6 +80,7 @@ function renderAdminPage() {
   renderTaskRows(state);
   renderRecentList(state);
   renderFeedbackRows(state);
+  renderQuestionRows(state);
 }
 
 function renderLoading() {
@@ -80,12 +88,15 @@ function renderLoading() {
   adminEls.taskCount.textContent = "0";
   adminEls.completionCount.textContent = "0";
   adminEls.feedbackCount.textContent = "0";
+  adminEls.questionCount.textContent = "0";
   adminEls.feedbackInboxCount.textContent = "0 条反馈";
+  adminEls.questionInboxCount.textContent = "0 个问题";
   TrainingStore.setProgress(adminEls.overallProgress, 0);
   adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训数据...</td></tr>`;
   adminEls.taskRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训任务...</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">正在连接 Supabase。</div>`;
   adminEls.feedbackRows.innerHTML = `<div class="empty-state">正在加载员工反馈...</div>`;
+  adminEls.questionRows.innerHTML = `<div class="empty-state">正在加载公开问题...</div>`;
 }
 
 function renderError(message) {
@@ -93,6 +104,7 @@ function renderError(message) {
   adminEls.taskRows.innerHTML = `<tr><td colspan="6" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
   adminEls.feedbackRows.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
+  adminEls.questionRows.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
 }
 
 function renderDatabaseNotice(state) {
@@ -210,6 +222,14 @@ function feedbackTypeLabel(type) {
   }[type] ?? "反馈";
 }
 
+function questionStatusLabel(status) {
+  return {
+    open: "待回复",
+    answered: "已回复",
+    resolved: "已解决"
+  }[status] ?? "待回复";
+}
+
 function renderFeedbackRows(state) {
   if (state.schema.feedback === false) {
     adminEls.feedbackRows.innerHTML = `<div class="empty-state">意见箱需要先执行 Supabase 升级 SQL。</div>`;
@@ -234,6 +254,69 @@ function renderFeedbackRows(state) {
       `;
     }).join("")
     : `<div class="empty-state">暂无员工反馈</div>`;
+}
+
+function renderQuestionRows(state) {
+  if (document.activeElement?.matches?.(".question-answer-form textarea")) {
+    return;
+  }
+
+  if (state.schema.questions === false) {
+    adminEls.questionRows.innerHTML = `<div class="empty-state">公开问题库需要先执行 Supabase 升级 SQL。</div>`;
+    return;
+  }
+
+  const employees = new Map(state.employees.map(employee => [employee.id, employee]));
+  const tasks = new Map(state.tasks.map(task => [task.id, task]));
+  const statusOrder = { open: 0, answered: 1, resolved: 2 };
+  const rows = state.questions
+    .slice()
+    .sort((a, b) => {
+      const statusDiff = (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
+      if (statusDiff) return statusDiff;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+  adminEls.questionRows.innerHTML = rows.length
+    ? rows.map(item => {
+      const employee = employees.get(item.employeeId);
+      const task = tasks.get(item.taskId);
+      const isSaving = answeringQuestionId === item.id;
+      return `
+        <article class="question-admin-item">
+          <div class="public-question-head">
+            <span class="question-status is-${TrainingStore.esc(item.status)}">${TrainingStore.esc(questionStatusLabel(item.status))}</span>
+            <strong>${TrainingStore.esc(item.title)}</strong>
+          </div>
+          <div class="public-question-meta">
+            <span>${TrainingStore.esc(item.topic)}</span>
+            <span>${TrainingStore.esc(employee?.name ?? "未知员工")} · ${TrainingStore.esc(employee?.department ?? "未知部门")}</span>
+            <span>${TrainingStore.esc(TrainingStore.formatTime(item.createdAt))}</span>
+            <span>${TrainingStore.esc(task ? `关联：${task.title}` : "未关联任务")}</span>
+          </div>
+          <div class="public-question-body">${TrainingStore.esc(item.body)}</div>
+          ${item.answerBody ? `
+            <div class="public-question-answer question-admin-answer">
+              <strong>当前回复</strong>
+              <p>${TrainingStore.esc(item.answerBody)}</p>
+              <small>${TrainingStore.esc(item.answeredBy ?? "supermanager")} · ${TrainingStore.esc(TrainingStore.formatTime(item.answeredAt))}</small>
+            </div>
+          ` : ""}
+          <form class="question-answer-form" data-question-form="${TrainingStore.esc(item.id)}">
+            <textarea name="answer" rows="3" placeholder="输入给员工公开可见的回复..." required>${TrainingStore.esc(item.answerBody ?? "")}</textarea>
+            <div class="question-answer-actions">
+              <button class="small-btn" type="submit" data-question-status="answered" ${isSaving ? "disabled" : ""}>
+                ${isSaving ? "保存中" : "回复"}
+              </button>
+              <button class="primary-btn" type="submit" data-question-status="resolved" ${isSaving ? "disabled" : ""}>
+                ${isSaving ? "保存中" : "回复并解决"}
+              </button>
+            </div>
+          </form>
+        </article>
+      `;
+    }).join("")
+    : `<div class="empty-state">暂无公开问题</div>`;
 }
 
 function selectedDepartments() {
@@ -325,6 +408,33 @@ adminEls.employeeRows.addEventListener("click", async event => {
     adminEls.taskFormMessage.classList.add("is-error");
   } finally {
     deletingEmployeeId = "";
+    renderAdminPage();
+  }
+});
+
+adminEls.questionRows.addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.target.closest("[data-question-form]");
+  if (!form || answeringQuestionId) return;
+
+  const questionId = form.dataset.questionForm;
+  const answer = new FormData(form).get("answer");
+  const status = event.submitter?.dataset.questionStatus ?? "answered";
+  answeringQuestionId = questionId;
+  adminEls.questionFormMessage.textContent = "";
+  adminEls.questionFormMessage.classList.remove("is-error", "is-success");
+  renderAdminPage();
+
+  try {
+    await TrainingStore.answerQuestion({ questionId, answer, status });
+    adminEls.questionFormMessage.textContent = status === "resolved" ? "问题已回复并标记为已解决。" : "问题已回复。";
+    adminEls.questionFormMessage.classList.add("is-success");
+  } catch (error) {
+    console.error(error);
+    adminEls.questionFormMessage.textContent = error.message || "回复问题失败，请稍后重试。";
+    adminEls.questionFormMessage.classList.add("is-error");
+  } finally {
+    answeringQuestionId = "";
     renderAdminPage();
   }
 });

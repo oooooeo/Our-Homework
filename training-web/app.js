@@ -14,11 +14,13 @@ const TrainingStore = (() => {
     completions: [],
     comments: [],
     feedback: [],
+    questions: [],
     schema: {
       dueAt: true,
       comments: true,
       targetDepartments: true,
-      feedback: true
+      feedback: true,
+      questions: true
     },
     loading: true,
     error: "",
@@ -109,6 +111,10 @@ const TrainingStore = (() => {
     return "请先在 Supabase SQL Editor 执行 training-web/supabase-migration-20260611-feedback.sql。";
   }
 
+  function questionsNotice() {
+    return "请先在 Supabase SQL Editor 执行 training-web/supabase-migration-20260611-public-questions.sql。";
+  }
+
   function isSchemaCacheError(error, keyword) {
     const message = String(error?.message ?? "").toLowerCase();
     return message.includes(String(keyword).toLowerCase()) && (
@@ -159,12 +165,31 @@ const TrainingStore = (() => {
     };
   }
 
+  function normalizeQuestion(record) {
+    return {
+      id: record.id,
+      employeeId: record.employee_id,
+      taskId: record.task_id,
+      title: record.title,
+      body: record.body,
+      topic: record.topic,
+      status: record.status,
+      answerBody: record.answer_body,
+      answeredBy: record.answered_by,
+      answeredAt: record.answered_at,
+      viewCount: record.view_count ?? 0,
+      createdAt: record.created_at,
+      updatedAt: record.updated_at
+    };
+  }
+
   function schemaNotice(schema) {
     const missing = [];
     if (!schema.dueAt) missing.push("任务截止时间");
     if (!schema.comments) missing.push("任务评论区");
     if (!schema.targetDepartments) missing.push("任务目标部门");
     if (!schema.feedback) missing.push("员工反馈");
+    if (!schema.questions) missing.push("公开问题库");
     return missing.length
       ? `数据库还没有启用：${missing.join("、")}。请先在 Supabase SQL Editor 执行仓库中的升级 SQL。`
       : "";
@@ -364,22 +389,40 @@ const TrainingStore = (() => {
     }
   }
 
+  async function loadQuestionsWithSchema() {
+    try {
+      const rows = await request("/rest/v1/training_questions?select=id,employee_id,task_id,title,body,topic,status,answer_body,answered_by,answered_at,view_count,created_at,updated_at&order=created_at.desc");
+      return {
+        rows: rows ?? [],
+        questions: true
+      };
+    } catch (error) {
+      if (!isSchemaCacheError(error, "training_questions")) throw error;
+      return {
+        rows: [],
+        questions: false
+      };
+    }
+  }
+
   async function loadRemoteState({ silent = false } = {}) {
     if (!silent) setState({ loading: true, error: "" });
 
     try {
-      const [employees, taskResult, completions, commentResult, feedbackResult] = await Promise.all([
+      const [employees, taskResult, completions, commentResult, feedbackResult, questionResult] = await Promise.all([
         request("/rest/v1/employees?select=id,code,name,department,role&order=code.asc"),
         loadTasksWithSchema(),
         request("/rest/v1/training_completions?select=id,employee_id,task_id,completed_at&order=completed_at.asc"),
         loadCommentsWithSchema(),
-        loadFeedbackWithSchema()
+        loadFeedbackWithSchema(),
+        loadQuestionsWithSchema()
       ]);
       const schema = {
         dueAt: taskResult.dueAt,
         comments: commentResult.comments,
         targetDepartments: taskResult.targetDepartments,
-        feedback: feedbackResult.feedback
+        feedback: feedbackResult.feedback,
+        questions: questionResult.questions
       };
 
       setState({
@@ -388,6 +431,7 @@ const TrainingStore = (() => {
         completions: (completions ?? []).map(normalizeCompletion),
         comments: commentResult.rows.map(normalizeComment),
         feedback: feedbackResult.rows.map(normalizeFeedback),
+        questions: questionResult.rows.map(normalizeQuestion),
         schema,
         loading: false,
         error: "",
@@ -636,6 +680,57 @@ const TrainingStore = (() => {
     return Array.isArray(rows) ? rows[0] ?? null : null;
   }
 
+  async function createQuestion({ taskId, employeeId, title, body, topic }) {
+    const trimmedTitle = String(title ?? "").trim();
+    const trimmedBody = String(body ?? "").trim();
+    const trimmedTopic = String(topic ?? "").trim() || "系统使用";
+    if (!employeeId || !trimmedTitle || !trimmedBody) return null;
+    if (state.schema.questions === false) {
+      throw new Error(`数据库还没有启用公开问题库。${questionsNotice()}`);
+    }
+
+    const payload = {
+      employee_id: employeeId,
+      title: trimmedTitle,
+      body: trimmedBody,
+      topic: trimmedTopic
+    };
+    if (taskId) payload.task_id = taskId;
+
+    const rows = await request("/rest/v1/training_questions?select=id,employee_id,task_id,title,body,topic,status,answer_body,answered_by,answered_at,view_count,created_at,updated_at", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(payload)
+    });
+
+    channel?.postMessage({ type: "state-updated" });
+    await loadRemoteState({ silent: true });
+    return Array.isArray(rows) ? normalizeQuestion(rows[0]) : null;
+  }
+
+  async function answerQuestion({ questionId, answer, status = "answered" }) {
+    const session = getSession();
+    if (!isManagerSession()) {
+      throw new Error("只有后台账号可以回复问题。");
+    }
+    if (state.schema.questions === false) {
+      throw new Error(`数据库还没有启用公开问题库。${questionsNotice()}`);
+    }
+
+    await request("/rest/v1/rpc/training_answer_question", {
+      method: "POST",
+      body: JSON.stringify({
+        input_question_id: questionId,
+        input_username: session.username,
+        input_answer: String(answer ?? ""),
+        input_status: status
+      })
+    });
+
+    channel?.postMessage({ type: "state-updated" });
+    await loadRemoteState({ silent: true });
+  }
+
   function percent(done, total) {
     return total ? Math.round(done / total * 100) : 0;
   }
@@ -808,6 +903,8 @@ const TrainingStore = (() => {
     deleteEmployee,
     createComment,
     createFeedback,
+    createQuestion,
+    answerQuestion,
     percent,
     formatTime,
     formatRelativeDeadline,

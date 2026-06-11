@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>培训后台主页</title>
-  <link rel="stylesheet" href="./styles.css?v=20260611-feedback-inbox">
+  <link rel="stylesheet" href="./styles.css?v=20260611-public-questions">
 </head>
 <body>
   <div class="app-shell">
@@ -62,6 +62,11 @@
           <span class="metric-label">意见箱</span>
           <strong id="feedbackCount">0</strong>
           <small>查看员工反馈</small>
+        </a>
+        <a class="metric inbox-entry" href="#questionInbox">
+          <span class="metric-label">公开问题</span>
+          <strong id="questionCount">0</strong>
+          <small>回复员工提问</small>
         </a>
       </section>
 
@@ -154,10 +159,19 @@
         </div>
         <div class="feedback-inbox-list" id="feedbackRows"></div>
       </section>
+
+      <section class="panel question-inbox-panel" id="questionInbox">
+        <div class="section-head">
+          <h2>公开问题</h2>
+          <span class="comment-count" id="questionInboxCount">0 个问题</span>
+        </div>
+        <div class="form-message panel-message" id="questionFormMessage" aria-live="polite"></div>
+        <div class="question-inbox-list" id="questionRows"></div>
+      </section>
     </main>
   </div>
 
-  <script src="./app.js?v=20260611-feedback-inbox"></script>
-  <script src="./admin.js?v=20260611-feedback-inbox"></script>
+  <script src="./app.js?v=20260611-public-questions"></script>
+  <script src="./admin.js?v=20260611-public-questions"></script>
 </body>
 </html>

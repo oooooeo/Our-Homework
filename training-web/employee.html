@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训任务</title>
-  <link rel="stylesheet" href="./styles.css?v=20260611-feedback-inbox">
+  <link rel="stylesheet" href="./styles.css?v=20260611-public-questions">
 </head>
 <body>
   <div class="app-shell">
@@ -60,8 +60,8 @@
         <button class="metric feedback-entry-btn" type="button" id="feedbackOpenBtn">
           <span class="feedback-entry-icon">↗</span>
           <span>
-            <strong>反馈</strong>
-            <small>满意 / 不满意 / 建议</small>
+            <strong>帮助与反馈</strong>
+            <small>满意 / 不满意 / 提问</small>
           </span>
         </button>
       </section>
@@ -71,6 +71,22 @@
           <h2>任务提醒</h2>
         </div>
         <div class="notification-list" id="notificationList"></div>
+      </section>
+
+      <section class="panel public-questions-panel" aria-label="公开问题">
+        <div class="section-head">
+          <h2>公开问题</h2>
+          <div class="question-tools">
+            <input id="questionSearch" type="search" placeholder="搜索问题、答案或任务">
+            <select id="questionStatusFilter" aria-label="问题状态">
+              <option value="all">全部状态</option>
+              <option value="open">待回复</option>
+              <option value="answered">已回复</option>
+              <option value="resolved">已解决</option>
+            </select>
+          </div>
+        </div>
+        <div class="public-question-list" id="questionList"></div>
       </section>
 
       <div class="content-grid">
@@ -119,10 +135,10 @@
 
   <div class="feedback-drawer" id="feedbackDrawer" hidden>
     <div class="feedback-backdrop" data-feedback-close></div>
-    <section class="feedback-panel" aria-label="反馈">
+    <section class="feedback-panel" aria-label="帮助与反馈">
       <div class="feedback-panel-head">
         <div>
-          <h2>反馈</h2>
+          <h2>帮助与反馈</h2>
           <p>选择反馈类型，提交后会同步保存。</p>
         </div>
         <button class="small-btn" type="button" data-feedback-close>关闭</button>
@@ -150,11 +166,32 @@
             <small>对功能或体验的想法都可以写下来。</small>
           </span>
         </button>
+        <button class="feedback-option" type="button" data-feedback-type="question">
+          <span class="feedback-face">?</span>
+          <span>
+            <strong>我要提一个问题</strong>
+            <small>问题会进入公开问题库，其他员工也可以检索。</small>
+          </span>
+        </button>
       </div>
 
       <form class="feedback-form" id="feedbackForm">
+        <label id="feedbackTitleField" hidden>
+          <span>问题标题</span>
+          <input id="feedbackTitle" type="text" placeholder="用一句话描述你的问题">
+        </label>
+        <label id="feedbackTopicField" hidden>
+          <span>问题分类</span>
+          <select id="feedbackTopic">
+            <option value="系统使用">系统使用</option>
+            <option value="培训内容">培训内容</option>
+            <option value="任务进度">任务进度</option>
+            <option value="制度规则">制度规则</option>
+            <option value="其他">其他</option>
+          </select>
+        </label>
         <label>
-          <span>反馈内容</span>
+          <span id="feedbackBodyLabel">反馈内容</span>
           <textarea id="feedbackBody" rows="4" placeholder="请写下你的具体反馈..." required></textarea>
         </label>
         <label>
@@ -170,7 +207,7 @@
     </section>
   </div>
 
-  <script src="./app.js?v=20260611-feedback-inbox"></script>
-  <script src="./employee.js?v=20260611-feedback-inbox"></script>
+  <script src="./app.js?v=20260611-public-questions"></script>
+  <script src="./employee.js?v=20260611-public-questions"></script>
 </body>
 </html>
