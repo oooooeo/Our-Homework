@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训任务</title>
-  <link rel="stylesheet" href="./styles.css?v=20260611-feedback">
+  <link rel="stylesheet" href="./styles.css?v=20260611-feedback-inbox">
 </head>
 <body>
   <div class="app-shell">
@@ -31,22 +31,13 @@
           <h1>员工培训任务</h1>
           <p class="page-meta">完成分配给当前账号的培训任务。</p>
         </div>
-        <div class="employee-head-actions">
-          <button class="feedback-entry-btn" type="button" id="feedbackOpenBtn">
-            <span class="feedback-entry-icon">↗</span>
-            <span>
-              <strong>反馈</strong>
-              <small>满意 / 不满意 / 建议</small>
-            </span>
-          </button>
-          <label class="select-field">
-            <span>当前用户</span>
-            <div class="session-box">
-              <strong id="currentUsername">未登录</strong>
-              <button class="small-btn" type="button" id="logoutBtn">退出</button>
-            </div>
-          </label>
-        </div>
+        <label class="select-field">
+          <span>当前用户</span>
+          <div class="session-box">
+            <strong id="currentUsername">未登录</strong>
+            <button class="small-btn" type="button" id="logoutBtn">退出</button>
+          </div>
+        </label>
       </header>
 
       <div class="system-notice" id="databaseNotice" hidden></div>
@@ -66,6 +57,13 @@
             <div class="progress-fill" id="employeeProgress"></div>
           </div>
         </div>
+        <button class="metric feedback-entry-btn" type="button" id="feedbackOpenBtn">
+          <span class="feedback-entry-icon">↗</span>
+          <span>
+            <strong>反馈</strong>
+            <small>满意 / 不满意 / 建议</small>
+          </span>
+        </button>
       </section>
 
       <section class="notification-panel" aria-label="任务提醒">
@@ -172,7 +170,7 @@
     </section>
   </div>
 
-  <script src="./app.js?v=20260611-feedback"></script>
-  <script src="./employee.js?v=20260611-feedback"></script>
+  <script src="./app.js?v=20260611-feedback-inbox"></script>
+  <script src="./employee.js?v=20260611-feedback-inbox"></script>
 </body>
 </html>

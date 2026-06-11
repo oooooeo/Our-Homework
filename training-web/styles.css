@@ -163,14 +163,7 @@ h2 {
   color: var(--muted);
 }
 
-.employee-head-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
 .feedback-entry-btn {
-  min-width: 230px;
   min-height: 76px;
   display: flex;
   align-items: center;
@@ -182,6 +175,10 @@ h2 {
   padding: 12px 14px;
   box-shadow: var(--shadow);
   text-align: left;
+}
+
+.employee-summary .feedback-entry-btn {
+  width: 100%;
 }
 
 .feedback-entry-btn:hover {
@@ -257,6 +254,10 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
+.admin-summary {
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+}
+
 .metric {
   min-height: 76px;
   border: 1px solid var(--line);
@@ -280,6 +281,22 @@ textarea:focus {
 .metric strong {
   font-size: 24px;
   line-height: 1;
+}
+
+.inbox-entry {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.inbox-entry:hover {
+  border-color: var(--accent);
+  background: var(--soft-blue);
+}
+
+.inbox-entry small {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .progress-track {
@@ -943,6 +960,70 @@ td {
   display: grid;
 }
 
+.feedback-inbox-panel {
+  margin-top: 16px;
+}
+
+.feedback-inbox-list {
+  display: grid;
+}
+
+.feedback-inbox-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.feedback-inbox-item:last-child {
+  border-bottom: 0;
+}
+
+.feedback-inbox-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.feedback-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f1f4f8;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.feedback-type.is-like {
+  background: var(--soft-green);
+  color: var(--success);
+}
+
+.feedback-type.is-dislike {
+  background: var(--soft-red);
+  color: var(--danger);
+}
+
+.feedback-type.is-suggestion {
+  background: var(--soft-blue);
+  color: var(--accent-strong);
+}
+
+.feedback-inbox-task {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.feedback-inbox-body {
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
 .recent-item {
   min-height: 58px;
   display: grid;
@@ -1295,14 +1376,6 @@ td {
 
   .page-head {
     display: grid;
-  }
-
-  .employee-head-actions {
-    display: grid;
-  }
-
-  .feedback-entry-btn {
-    width: 100%;
   }
 
   .employee-summary,

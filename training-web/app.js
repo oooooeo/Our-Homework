@@ -13,6 +13,7 @@ const TrainingStore = (() => {
     tasks: [],
     completions: [],
     comments: [],
+    feedback: [],
     schema: {
       dueAt: true,
       comments: true,
@@ -142,6 +143,17 @@ const TrainingStore = (() => {
       id: record.id,
       taskId: record.task_id,
       employeeId: record.employee_id,
+      body: record.body,
+      createdAt: record.created_at
+    };
+  }
+
+  function normalizeFeedback(record) {
+    return {
+      id: record.id,
+      employeeId: record.employee_id,
+      taskId: record.task_id,
+      type: record.feedback_type,
       body: record.body,
       createdAt: record.created_at
     };
@@ -336,13 +348,19 @@ const TrainingStore = (() => {
     }
   }
 
-  async function loadFeedbackSchema() {
+  async function loadFeedbackWithSchema() {
     try {
-      await request("/rest/v1/training_feedback?select=id&limit=1");
-      return true;
+      const rows = await request("/rest/v1/training_feedback?select=id,employee_id,task_id,feedback_type,body,created_at&order=created_at.desc");
+      return {
+        rows: rows ?? [],
+        feedback: true
+      };
     } catch (error) {
       if (!isSchemaCacheError(error, "training_feedback")) throw error;
-      return false;
+      return {
+        rows: [],
+        feedback: false
+      };
     }
   }
 
@@ -350,18 +368,18 @@ const TrainingStore = (() => {
     if (!silent) setState({ loading: true, error: "" });
 
     try {
-      const [employees, taskResult, completions, commentResult, feedback] = await Promise.all([
+      const [employees, taskResult, completions, commentResult, feedbackResult] = await Promise.all([
         request("/rest/v1/employees?select=id,code,name,department,role&order=code.asc"),
         loadTasksWithSchema(),
         request("/rest/v1/training_completions?select=id,employee_id,task_id,completed_at&order=completed_at.asc"),
         loadCommentsWithSchema(),
-        loadFeedbackSchema()
+        loadFeedbackWithSchema()
       ]);
       const schema = {
         dueAt: taskResult.dueAt,
         comments: commentResult.comments,
         targetDepartments: taskResult.targetDepartments,
-        feedback
+        feedback: feedbackResult.feedback
       };
 
       setState({
@@ -369,6 +387,7 @@ const TrainingStore = (() => {
         tasks: taskResult.rows.map(normalizeTask),
         completions: (completions ?? []).map(normalizeCompletion),
         comments: commentResult.rows.map(normalizeComment),
+        feedback: feedbackResult.rows.map(normalizeFeedback),
         schema,
         loading: false,
         error: "",

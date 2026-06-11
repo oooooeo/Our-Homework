@@ -5,6 +5,9 @@ const adminEls = {
   taskCount: document.querySelector("#taskCount"),
   completionCount: document.querySelector("#completionCount"),
   overallProgress: document.querySelector("#overallProgress"),
+  feedbackCount: document.querySelector("#feedbackCount"),
+  feedbackInboxCount: document.querySelector("#feedbackInboxCount"),
+  feedbackRows: document.querySelector("#feedbackRows"),
   employeeRows: document.querySelector("#employeeRows"),
   taskRows: document.querySelector("#taskRows"),
   taskForm: document.querySelector("#taskForm"),
@@ -61,28 +64,35 @@ function renderAdminPage() {
   adminEls.employeeCount.textContent = String(state.employees.length);
   adminEls.taskCount.textContent = String(state.tasks.length);
   adminEls.completionCount.textContent = String(completionCount);
+  adminEls.feedbackCount.textContent = String(state.feedback.length);
+  adminEls.feedbackInboxCount.textContent = `${state.feedback.length} 条反馈`;
   TrainingStore.setProgress(adminEls.overallProgress, overallPct);
 
   renderDatabaseNotice(state);
   renderEmployeeRows(state);
   renderTaskRows(state);
   renderRecentList(state);
+  renderFeedbackRows(state);
 }
 
 function renderLoading() {
   adminEls.employeeCount.textContent = "0";
   adminEls.taskCount.textContent = "0";
   adminEls.completionCount.textContent = "0";
+  adminEls.feedbackCount.textContent = "0";
+  adminEls.feedbackInboxCount.textContent = "0 条反馈";
   TrainingStore.setProgress(adminEls.overallProgress, 0);
   adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训数据...</td></tr>`;
   adminEls.taskRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训任务...</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">正在连接 Supabase。</div>`;
+  adminEls.feedbackRows.innerHTML = `<div class="empty-state">正在加载员工反馈...</div>`;
 }
 
 function renderError(message) {
   adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.taskRows.innerHTML = `<tr><td colspan="6" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
+  adminEls.feedbackRows.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
 }
 
 function renderDatabaseNotice(state) {
@@ -190,6 +200,40 @@ function renderRecentList(state) {
       `;
     }).join("")
     : `<div class="empty-state">暂无完成记录</div>`;
+}
+
+function feedbackTypeLabel(type) {
+  return {
+    like: "满意",
+    dislike: "不满意",
+    suggestion: "建议"
+  }[type] ?? "反馈";
+}
+
+function renderFeedbackRows(state) {
+  if (state.schema.feedback === false) {
+    adminEls.feedbackRows.innerHTML = `<div class="empty-state">意见箱需要先执行 Supabase 升级 SQL。</div>`;
+    return;
+  }
+
+  adminEls.feedbackRows.innerHTML = state.feedback.length
+    ? state.feedback.map(item => {
+      const employee = state.employees.find(row => row.id === item.employeeId);
+      const task = state.tasks.find(row => row.id === item.taskId);
+      return `
+        <article class="feedback-inbox-item">
+          <div class="feedback-inbox-meta">
+            <span class="feedback-type is-${TrainingStore.esc(item.type)}">${TrainingStore.esc(feedbackTypeLabel(item.type))}</span>
+            <strong>${TrainingStore.esc(employee?.name ?? "未知员工")}</strong>
+            <span>${TrainingStore.esc(employee?.department ?? "未知部门")}</span>
+            <span>${TrainingStore.esc(TrainingStore.formatTime(item.createdAt))}</span>
+          </div>
+          <div class="feedback-inbox-task">${TrainingStore.esc(task ? `关联任务：${task.title}` : "未关联具体任务")}</div>
+          <div class="feedback-inbox-body">${TrainingStore.esc(item.body)}</div>
+        </article>
+      `;
+    }).join("")
+    : `<div class="empty-state">暂无员工反馈</div>`;
 }
 
 function selectedDepartments() {

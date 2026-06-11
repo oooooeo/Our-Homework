@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>培训后台主页</title>
-  <link rel="stylesheet" href="./styles.css?v=20260611-feedback">
+  <link rel="stylesheet" href="./styles.css?v=20260611-feedback-inbox">
 </head>
 <body>
   <div class="app-shell">
@@ -58,6 +58,11 @@
             <div class="progress-fill" id="overallProgress"></div>
           </div>
         </div>
+        <a class="metric inbox-entry" href="#feedbackInbox">
+          <span class="metric-label">意见箱</span>
+          <strong id="feedbackCount">0</strong>
+          <small>查看员工反馈</small>
+        </a>
       </section>
 
       <div class="admin-grid">
@@ -141,10 +146,18 @@
           <div class="recent-list" id="recentList"></div>
         </section>
       </div>
+
+      <section class="panel feedback-inbox-panel" id="feedbackInbox">
+        <div class="section-head">
+          <h2>意见箱</h2>
+          <span class="comment-count" id="feedbackInboxCount">0 条反馈</span>
+        </div>
+        <div class="feedback-inbox-list" id="feedbackRows"></div>
+      </section>
     </main>
   </div>
 
-  <script src="./app.js?v=20260611-feedback"></script>
-  <script src="./admin.js?v=20260611-feedback"></script>
+  <script src="./app.js?v=20260611-feedback-inbox"></script>
+  <script src="./admin.js?v=20260611-feedback-inbox"></script>
 </body>
 </html>
