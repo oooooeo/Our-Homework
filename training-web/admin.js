@@ -10,6 +10,7 @@ const adminEls = {
   taskForm: document.querySelector("#taskForm"),
   newTaskTitle: document.querySelector("#newTaskTitle"),
   newTaskDueAt: document.querySelector("#newTaskDueAt"),
+  newTaskDepartments: document.querySelector("#newTaskDepartments"),
   newTaskContent: document.querySelector("#newTaskContent"),
   taskFormMessage: document.querySelector("#taskFormMessage"),
   databaseNotice: document.querySelector("#databaseNotice"),
@@ -19,6 +20,16 @@ const adminEls = {
 let savingTask = false;
 let deletingTaskId = "";
 let deletingEmployeeId = "";
+
+function renderDepartmentOptions() {
+  if (!adminEls.newTaskDepartments) return;
+  adminEls.newTaskDepartments.innerHTML = TrainingStore.departments.map(department => `
+    <label class="check-option">
+      <input type="checkbox" value="${TrainingStore.esc(department)}" checked>
+      <span>${TrainingStore.esc(department)}</span>
+    </label>
+  `).join("");
+}
 
 function redirectToPortal() {
   window.location.href = "./index.html";
@@ -43,8 +54,8 @@ function renderAdminPage() {
     return;
   }
 
-  const totalCapacity = state.employees.length * state.tasks.length;
-  const completionCount = state.completions.length;
+  const totalCapacity = TrainingStore.requiredCapacity();
+  const completionCount = TrainingStore.requiredCompletionCount();
   const overallPct = TrainingStore.percent(completionCount, totalCapacity);
 
   adminEls.employeeCount.textContent = String(state.employees.length);
@@ -64,13 +75,13 @@ function renderLoading() {
   adminEls.completionCount.textContent = "0";
   TrainingStore.setProgress(adminEls.overallProgress, 0);
   adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训数据...</td></tr>`;
-  adminEls.taskRows.innerHTML = `<tr><td colspan="5" class="empty-table">正在加载培训任务...</td></tr>`;
+  adminEls.taskRows.innerHTML = `<tr><td colspan="6" class="empty-table">正在加载培训任务...</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">正在连接 Supabase。</div>`;
 }
 
 function renderError(message) {
   adminEls.employeeRows.innerHTML = `<tr><td colspan="6" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
-  adminEls.taskRows.innerHTML = `<tr><td colspan="5" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
+  adminEls.taskRows.innerHTML = `<tr><td colspan="6" class="empty-table">${TrainingStore.esc(message)}</td></tr>`;
   adminEls.recentList.innerHTML = `<div class="empty-state">${TrainingStore.esc(message)}</div>`;
 }
 
@@ -82,15 +93,16 @@ function renderDatabaseNotice(state) {
 
 function renderEmployeeRows(state) {
   adminEls.employeeRows.innerHTML = state.employees.map(employee => {
-    const records = TrainingStore.employeeCompletions(employee.id);
-    const pct = TrainingStore.percent(records.length, state.tasks.length);
+    const assignedTasks = TrainingStore.assignedTasksForEmployee(employee);
+    const records = TrainingStore.employeeAssignedCompletions(employee);
+    const pct = TrainingStore.percent(records.length, assignedTasks.length);
     const last = records.slice().sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))[0];
 
     return `
       <tr>
         <td><strong>${TrainingStore.esc(employee.name)}</strong></td>
         <td>${TrainingStore.esc(employee.department)}</td>
-        <td>${records.length}/${state.tasks.length}</td>
+        <td>${records.length}/${assignedTasks.length}</td>
         <td>
           <div class="row-progress">
             <div class="progress-track"><div class="progress-fill" data-pct="${pct}"></div></div>
@@ -112,15 +124,20 @@ function renderEmployeeRows(state) {
 
 function renderTaskRows(state) {
   adminEls.taskRows.innerHTML = state.tasks.map(task => {
-    const records = TrainingStore.taskCompletions(task.id);
-    const pct = TrainingStore.percent(records.length, state.employees.length);
+    const assignedEmployees = TrainingStore.assignedEmployeesForTask(task);
+    const records = TrainingStore.taskAssignedCompletions(task);
+    const pct = TrainingStore.percent(records.length, assignedEmployees.length);
     const complete = pct >= 100;
     const deadline = TrainingStore.deadlineStatus(task, complete);
+    const targetLabel = task.targetDepartments.length === TrainingStore.departments.length
+      ? "全部部门"
+      : task.targetDepartments.join("、");
 
     return `
       <tr>
         <td><strong>${TrainingStore.esc(task.title)}</strong></td>
         <td>${TrainingStore.esc(task.type)}</td>
+        <td>${TrainingStore.esc(targetLabel)}</td>
         <td>
           <span class="deadline-pill is-${TrainingStore.esc(deadline.level)}">${TrainingStore.esc(deadline.detail)}</span>
         </td>
@@ -149,7 +166,14 @@ function syncRowProgress() {
 }
 
 function renderRecentList(state) {
+  const taskById = new Map(state.tasks.map(task => [task.id, task]));
+  const employeeById = new Map(state.employees.map(employee => [employee.id, employee]));
   const rows = state.completions
+    .filter(record => {
+      const task = taskById.get(record.taskId);
+      const employee = employeeById.get(record.employeeId);
+      return task && employee && TrainingStore.isTaskAssignedToDepartment(task, employee.department);
+    })
     .slice()
     .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt))
     .slice(0, 8);
@@ -168,6 +192,11 @@ function renderRecentList(state) {
     : `<div class="empty-state">暂无完成记录</div>`;
 }
 
+function selectedDepartments() {
+  const checked = [...adminEls.newTaskDepartments.querySelectorAll("input[type='checkbox']:checked")];
+  return checked.map(input => input.value);
+}
+
 adminEls.taskForm.addEventListener("submit", async event => {
   event.preventDefault();
   if (savingTask) return;
@@ -180,10 +209,15 @@ adminEls.taskForm.addEventListener("submit", async event => {
   submitButton.lastChild.textContent = " 保存中";
 
   try {
+    const targetDepartments = selectedDepartments();
+    if (!targetDepartments.length) {
+      throw new Error("请至少选择一个目标部门。");
+    }
     const task = await TrainingStore.createTask({
       title: adminEls.newTaskTitle.value,
       dueAt: adminEls.newTaskDueAt.value,
-      content: adminEls.newTaskContent.value
+      content: adminEls.newTaskContent.value,
+      targetDepartments
     });
     if (task) {
       adminEls.taskForm.reset();
@@ -257,4 +291,5 @@ adminEls.logoutBtn.addEventListener("click", () => {
 });
 
 TrainingStore.subscribe(renderAdminPage);
+renderDepartmentOptions();
 renderAdminPage();

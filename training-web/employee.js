@@ -6,6 +6,7 @@ const employeeEls = {
   employeeProgress: document.querySelector("#employeeProgress"),
   databaseNotice: document.querySelector("#databaseNotice"),
   notificationList: document.querySelector("#notificationList"),
+  taskPanelTitle: document.querySelector("#taskPanelTitle"),
   taskList: document.querySelector("#taskList"),
   articleTitle: document.querySelector("#articleTitle"),
   articleStatus: document.querySelector("#articleStatus"),
@@ -23,6 +24,7 @@ const NEW_TASK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 let selectedEmployeeId = "";
 let selectedTaskId = "";
+let taskMode = "required";
 let saving = false;
 let savingComment = false;
 let knownTaskIds = new Set();
@@ -57,16 +59,18 @@ function renderEmployeePage() {
     return;
   }
   selectedEmployeeId = employee.id;
-  if (!state.tasks.some(task => task.id === selectedTaskId)) {
-    selectedTaskId = state.tasks[0]?.id ?? "";
+  const visibleTasks = visibleTasksForMode(state, employee);
+  if (!visibleTasks.some(task => task.id === selectedTaskId)) {
+    selectedTaskId = visibleTasks[0]?.id ?? "";
   }
 
-  trackNewTasks(state);
+  trackNewTasks(state, employee);
   renderDatabaseNotice(state);
   renderEmployeeIdentity(employee);
-  renderEmployeeSummary(state);
-  renderNotifications(state);
-  renderTaskList(state);
+  renderEmployeeSummary(state, employee);
+  renderNotifications(state, employee);
+  renderTaskModeControls();
+  renderTaskList(state, employee);
   renderArticle(state.tasks.find(task => task.id === selectedTaskId), state);
 }
 
@@ -106,9 +110,15 @@ function renderEmployeeIdentity(employee) {
   employeeEls.currentUsername.textContent = `${employee.name} · ${employee.department}`;
 }
 
-function renderEmployeeSummary(state) {
-  const done = TrainingStore.employeeCompletions(selectedEmployeeId).length;
-  const total = state.tasks.length;
+function visibleTasksForMode(state, employee) {
+  return taskMode === "square"
+    ? TrainingStore.learningSquareTasksForEmployee(employee)
+    : TrainingStore.assignedTasksForEmployee(employee);
+}
+
+function renderEmployeeSummary(state, employee) {
+  const done = TrainingStore.employeeAssignedCompletions(employee).length;
+  const total = TrainingStore.assignedTasksForEmployee(employee).length;
   const pct = TrainingStore.percent(done, total);
 
   employeeEls.employeeDone.textContent = `${done}/${total}`;
@@ -116,8 +126,9 @@ function renderEmployeeSummary(state) {
   TrainingStore.setProgress(employeeEls.employeeProgress, pct);
 }
 
-function renderNotifications(state) {
-  const incompleteTasks = state.tasks.filter(task => !TrainingStore.isComplete(selectedEmployeeId, task.id));
+function renderNotifications(state, employee) {
+  const incompleteTasks = TrainingStore.assignedTasksForEmployee(employee)
+    .filter(task => !TrainingStore.isComplete(selectedEmployeeId, task.id));
   const rows = incompleteTasks
     .map(task => {
       const deadline = TrainingStore.deadlineStatus(task, false);
@@ -158,13 +169,27 @@ function renderNotifications(state) {
     : `${permissionPrompt}<div class="empty-state">当前没有待完成提醒。</div>`;
 }
 
-function renderTaskList(state) {
-  employeeEls.taskList.innerHTML = state.tasks.length
-    ? state.tasks.map(task => {
+function renderTaskModeControls() {
+  document.querySelectorAll("[data-task-mode]").forEach(button => {
+    button.classList.toggle("is-active", button.dataset.taskMode === taskMode);
+  });
+  if (employeeEls.taskPanelTitle) {
+    employeeEls.taskPanelTitle.textContent = taskMode === "square" ? "学习广场" : "必修任务";
+  }
+}
+
+function renderTaskList(state, employee) {
+  const visibleTasks = visibleTasksForMode(state, employee);
+  employeeEls.taskList.innerHTML = visibleTasks.length
+    ? visibleTasks.map(task => {
       const complete = TrainingStore.isComplete(selectedEmployeeId, task.id);
       const selected = task.id === selectedTaskId;
       const deadline = TrainingStore.deadlineStatus(task, complete);
       const commentCount = TrainingStore.taskComments(task.id).length;
+      const required = TrainingStore.isTaskAssignedToDepartment(task, employee.department);
+      const targetLabel = task.targetDepartments.length === TrainingStore.departments.length
+        ? "全部部门"
+        : task.targetDepartments.join("、");
       return `
         <div class="task-item ${selected ? "is-selected" : ""}" data-task-id="${TrainingStore.esc(task.id)}">
           <div>
@@ -172,6 +197,8 @@ function renderTaskList(state) {
             <div class="task-meta">
               <span>${TrainingStore.esc(task.type)}</span>
               <span>${TrainingStore.esc(task.minutes)} 分钟</span>
+              <span>${required ? "本部门必修" : "自主学习"}</span>
+              <span>目标：${TrainingStore.esc(targetLabel)}</span>
               <span>${complete ? "已完成" : "未完成"}</span>
               <span class="deadline-text is-${TrainingStore.esc(deadline.level)}">${TrainingStore.esc(deadline.detail)}</span>
               <span>${commentCount} 条评论</span>
@@ -181,7 +208,7 @@ function renderTaskList(state) {
         </div>
       `;
     }).join("")
-    : `<div class="empty-state">暂无培训任务</div>`;
+    : `<div class="empty-state">${taskMode === "square" ? "学习广场暂无其他部门任务。" : "当前部门暂无必修任务。"}</div>`;
 }
 
 function renderArticle(task, state) {
@@ -196,13 +223,16 @@ function renderArticle(task, state) {
   }
 
   const complete = TrainingStore.isComplete(selectedEmployeeId, task.id);
+  const employee = TrainingStore.sessionEmployee();
+  const required = TrainingStore.isTaskAssignedToDepartment(task, employee?.department);
   const deadline = TrainingStore.deadlineStatus(task, complete);
   const paragraphs = task.content.map(paragraph => `<p>${TrainingStore.esc(paragraph)}</p>`).join("");
+  const scopeLabel = required ? "本部门必修任务" : "学习广场自主学习任务";
   employeeEls.articleTitle.textContent = task.title;
   employeeEls.articleBody.innerHTML = `
     <div class="article-deadline is-${TrainingStore.esc(deadline.level)}">
       <strong>${TrainingStore.esc(deadline.label)}</strong>
-      <span>${TrainingStore.esc(complete ? "该任务已完成。" : "请在截止时间前完成任务。")}</span>
+      <span>${TrainingStore.esc(`${scopeLabel}。${complete ? "该任务已完成。" : required ? "请在截止时间前完成任务。" : "完成后会记录为自主学习，不影响必修进度。"}`)}</span>
     </div>
     ${paragraphs || `<p class="empty-state">暂无内容</p>`}
   `;
@@ -283,10 +313,11 @@ function isRecentlyCreated(task) {
   return Date.now() - createdAt <= NEW_TASK_WINDOW_MS;
 }
 
-function trackNewTasks(state) {
-  const currentIds = new Set(state.tasks.map(task => task.id));
+function trackNewTasks(state, employee) {
+  const assignedTasks = TrainingStore.assignedTasksForEmployee(employee);
+  const currentIds = new Set(assignedTasks.map(task => task.id));
   if (hasTrackedTasks) {
-    const newTasks = state.tasks.filter(task => !knownTaskIds.has(task.id));
+    const newTasks = assignedTasks.filter(task => !knownTaskIds.has(task.id));
     if (newTasks.length) {
       showTaskToast(newTasks[0], newTasks.length);
       showBrowserNotification(newTasks[0], newTasks.length);
@@ -339,6 +370,16 @@ employeeEls.taskList.addEventListener("click", event => {
   renderEmployeePage();
 });
 
+document.querySelectorAll("[data-task-mode]").forEach(button => {
+  button.addEventListener("click", () => {
+    taskMode = button.dataset.taskMode;
+    const employee = TrainingStore.sessionEmployee();
+    const visibleTasks = visibleTasksForMode(TrainingStore.getState(), employee);
+    selectedTaskId = visibleTasks[0]?.id ?? "";
+    renderEmployeePage();
+  });
+});
+
 employeeEls.notificationList.addEventListener("click", async event => {
   const permissionButton = event.target.closest("[data-enable-notifications]");
   if (permissionButton && browserNotificationsAvailable()) {
@@ -349,6 +390,7 @@ employeeEls.notificationList.addEventListener("click", async event => {
 
   const trigger = event.target.closest("[data-open-task]");
   if (!trigger) return;
+  taskMode = "required";
   selectedTaskId = trigger.dataset.openTask;
   markTaskSeen(selectedTaskId);
   renderEmployeePage();
@@ -357,6 +399,7 @@ employeeEls.notificationList.addEventListener("click", async event => {
 document.body.addEventListener("click", event => {
   const trigger = event.target.closest(".task-toast[data-open-task]");
   if (!trigger) return;
+  taskMode = "required";
   selectedTaskId = trigger.dataset.openTask;
   markTaskSeen(selectedTaskId);
   trigger.classList.remove("is-visible");

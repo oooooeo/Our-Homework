@@ -15,7 +15,8 @@ const TrainingStore = (() => {
     comments: [],
     schema: {
       dueAt: true,
-      comments: true
+      comments: true,
+      targetDepartments: true
     },
     loading: true,
     error: "",
@@ -98,6 +99,10 @@ const TrainingStore = (() => {
     return "请先在 Supabase SQL Editor 执行 training-web/supabase-migration-20260610-employee-department-delete.sql。";
   }
 
+  function targetDepartmentsNotice() {
+    return "请先在 Supabase SQL Editor 执行 training-web/supabase-migration-20260611-target-departments.sql。";
+  }
+
   function isSchemaCacheError(error, keyword) {
     const message = String(error?.message ?? "").toLowerCase();
     return message.includes(String(keyword).toLowerCase()) && (
@@ -113,6 +118,7 @@ const TrainingStore = (() => {
       ...task,
       content: Array.isArray(task.content) ? task.content : [],
       dueAt: task.due_at ?? null,
+      targetDepartments: normalizeTargetDepartments(task.target_departments),
       createdAt: task.created_at
     };
   }
@@ -140,6 +146,7 @@ const TrainingStore = (() => {
     const missing = [];
     if (!schema.dueAt) missing.push("任务截止时间");
     if (!schema.comments) missing.push("任务评论区");
+    if (!schema.targetDepartments) missing.push("任务目标部门");
     return missing.length
       ? `数据库还没有启用：${missing.join("、")}。请先在 Supabase SQL Editor 执行仓库中的升级 SQL。`
       : "";
@@ -176,6 +183,17 @@ const TrainingStore = (() => {
 
   function normalizeDepartment(value) {
     return DEPARTMENTS.includes(value) ? value : DEPARTMENTS[0];
+  }
+
+  function normalizeTargetDepartments(value) {
+    const departments = Array.isArray(value)
+      ? value
+      : String(value ?? "")
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean);
+    const filtered = departments.filter(department => DEPARTMENTS.includes(department));
+    return filtered.length ? [...new Set(filtered)] : [...DEPARTMENTS];
   }
 
   function normalizeAuthResult(row, status) {
@@ -263,6 +281,24 @@ const TrainingStore = (() => {
 
   async function loadTasksWithSchema() {
     try {
+      const rows = await request("/rest/v1/training_tasks?select=id,code,title,type,minutes,content,due_at,target_departments,created_at&order=created_at.asc");
+      return {
+        rows: rows ?? [],
+        dueAt: true,
+        targetDepartments: true
+      };
+    } catch (error) {
+      if (!isSchemaCacheError(error, "target_departments") && !isSchemaCacheError(error, "due_at")) throw error;
+      const fallback = await loadTasksWithDueAtSchema();
+      return {
+        ...fallback,
+        targetDepartments: false
+      };
+    }
+  }
+
+  async function loadTasksWithDueAtSchema() {
+    try {
       const rows = await request("/rest/v1/training_tasks?select=id,code,title,type,minutes,content,due_at,created_at&order=created_at.asc");
       return {
         rows: rows ?? [],
@@ -306,7 +342,8 @@ const TrainingStore = (() => {
       ]);
       const schema = {
         dueAt: taskResult.dueAt,
-        comments: commentResult.comments
+        comments: commentResult.comments,
+        targetDepartments: taskResult.targetDepartments
       };
 
       setState({
@@ -351,6 +388,48 @@ const TrainingStore = (() => {
     return state.comments.filter(item => item.taskId === taskId);
   }
 
+  function isTaskAssignedToDepartment(task, department) {
+    return normalizeTargetDepartments(task?.targetDepartments).includes(normalizeDepartment(department));
+  }
+
+  function assignedTasksForEmployee(employee) {
+    if (!employee) return [];
+    return state.tasks.filter(task => isTaskAssignedToDepartment(task, employee.department));
+  }
+
+  function learningSquareTasksForEmployee(employee) {
+    if (!employee) return [];
+    return state.tasks.filter(task => !isTaskAssignedToDepartment(task, employee.department));
+  }
+
+  function employeeAssignedCompletions(employee) {
+    const assignedIds = new Set(assignedTasksForEmployee(employee).map(task => task.id));
+    return state.completions.filter(item => item.employeeId === employee?.id && assignedIds.has(item.taskId));
+  }
+
+  function assignedEmployeesForTask(task) {
+    return state.employees.filter(employee => isTaskAssignedToDepartment(task, employee.department));
+  }
+
+  function taskAssignedCompletions(task) {
+    const assignedEmployeeIds = new Set(assignedEmployeesForTask(task).map(employee => employee.id));
+    return state.completions.filter(item => item.taskId === task?.id && assignedEmployeeIds.has(item.employeeId));
+  }
+
+  function requiredCapacity() {
+    return state.employees.reduce((sum, employee) => sum + assignedTasksForEmployee(employee).length, 0);
+  }
+
+  function requiredCompletionCount() {
+    const taskById = new Map(state.tasks.map(task => [task.id, task]));
+    const employeeById = new Map(state.employees.map(employee => [employee.id, employee]));
+    return state.completions.filter(record => {
+      const task = taskById.get(record.taskId);
+      const employee = employeeById.get(record.employeeId);
+      return task && employee && isTaskAssignedToDepartment(task, employee.department);
+    }).length;
+  }
+
   async function completeTask(employeeId, taskId) {
     if (!employeeId || !taskId || isComplete(employeeId, taskId)) return;
 
@@ -388,7 +467,7 @@ const TrainingStore = (() => {
     return date.toISOString();
   }
 
-  async function createTask({ title, content, dueAt }) {
+  async function createTask({ title, content, dueAt, targetDepartments }) {
     const trimmedTitle = String(title ?? "").trim();
     const trimmedContent = String(content ?? "").trim();
     const normalizedDueAt = normalizeDueAt(dueAt);
@@ -399,19 +478,24 @@ const TrainingStore = (() => {
     if (normalizedDueAt && state.schema.dueAt === false) {
       throw new Error("数据库还没有启用任务截止时间，请先执行升级 SQL。");
     }
+    const normalizedTargetDepartments = normalizeTargetDepartments(targetDepartments);
+    if (state.schema.targetDepartments === false) {
+      throw new Error(`数据库还没有启用任务目标部门。${targetDepartmentsNotice()}`);
+    }
 
     const payload = {
       code: `task-${Date.now().toString(36)}`,
       title: trimmedTitle,
       type: "培训文章",
       minutes: Math.max(3, Math.ceil(trimmedContent.length / 120)),
-      content: trimmedContent.split(/\n+/).map(item => item.trim()).filter(Boolean)
+      content: trimmedContent.split(/\n+/).map(item => item.trim()).filter(Boolean),
+      target_departments: normalizedTargetDepartments
     };
     if (normalizedDueAt) payload.due_at = normalizedDueAt;
 
     const select = state.schema.dueAt === false
-      ? "id,code,title,type,minutes,content,created_at"
-      : "id,code,title,type,minutes,content,due_at,created_at";
+      ? "id,code,title,type,minutes,content,target_departments,created_at"
+      : "id,code,title,type,minutes,content,due_at,target_departments,created_at";
     const rows = await request(`/rest/v1/training_tasks?select=${select}`, {
       method: "POST",
       headers: { Prefer: "return=representation" },
@@ -637,6 +721,8 @@ const TrainingStore = (() => {
     setSession,
     clearSession,
     departments: DEPARTMENTS,
+    normalizeDepartment,
+    normalizeTargetDepartments,
     isManagerSession,
     isEmployeeSession,
     sessionEmployee,
@@ -646,6 +732,14 @@ const TrainingStore = (() => {
     employeeCompletions,
     taskCompletions,
     taskComments,
+    isTaskAssignedToDepartment,
+    assignedTasksForEmployee,
+    learningSquareTasksForEmployee,
+    employeeAssignedCompletions,
+    assignedEmployeesForTask,
+    taskAssignedCompletions,
+    requiredCapacity,
+    requiredCompletionCount,
     completeTask,
     createTask,
     deleteTask,

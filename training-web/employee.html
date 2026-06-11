@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>员工培训任务</title>
-  <link rel="stylesheet" href="./styles.css?v=20260610-employee-admin">
+  <link rel="stylesheet" href="./styles.css?v=20260611-target-departments">
 </head>
 <body>
   <div class="app-shell">
@@ -69,7 +69,11 @@
       <div class="content-grid">
         <section class="panel task-panel">
           <div class="section-head">
-            <h2>培训任务</h2>
+            <h2 id="taskPanelTitle">必修任务</h2>
+            <div class="segmented-control" aria-label="任务范围">
+              <button class="segment-btn is-active" type="button" data-task-mode="required">必修任务</button>
+              <button class="segment-btn" type="button" data-task-mode="square">学习广场</button>
+            </div>
           </div>
           <div class="task-list" id="taskList"></div>
         </section>
@@ -106,7 +110,7 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260610-employee-admin"></script>
-  <script src="./employee.js?v=20260610-employee-admin"></script>
+  <script src="./app.js?v=20260611-target-departments"></script>
+  <script src="./employee.js?v=20260611-target-departments"></script>
 </body>
 </html>

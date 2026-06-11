@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>培训后台主页</title>
-  <link rel="stylesheet" href="./styles.css?v=20260610-employee-admin">
+  <link rel="stylesheet" href="./styles.css?v=20260611-target-departments">
 </head>
 <body>
   <div class="app-shell">
@@ -92,6 +92,7 @@
                 <tr>
                   <th>任务</th>
                   <th>类型</th>
+                  <th>目标部门</th>
                   <th>截止时间</th>
                   <th>完成率</th>
                   <th>操作</th>
@@ -117,6 +118,10 @@
               <span>完成截止时间</span>
               <input id="newTaskDueAt" type="datetime-local">
             </label>
+            <fieldset class="department-fieldset">
+              <legend>目标部门</legend>
+              <div class="department-options" id="newTaskDepartments"></div>
+            </fieldset>
             <label>
               <span>培训文章</span>
               <textarea id="newTaskContent" rows="7" required></textarea>
@@ -139,7 +144,7 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260610-employee-admin"></script>
-  <script src="./admin.js?v=20260610-employee-admin"></script>
+  <script src="./app.js?v=20260611-target-departments"></script>
+  <script src="./admin.js?v=20260611-target-departments"></script>
 </body>
 </html>
