@@ -145,7 +145,11 @@ function renderEmployeeRows(state) {
 }
 
 function renderTaskRows(state) {
-  adminEls.taskRows.innerHTML = state.tasks.map(task => {
+  const rows = state.tasks
+    .slice()
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  adminEls.taskRows.innerHTML = rows.map(task => {
     const assignedEmployees = TrainingStore.assignedEmployeesForTask(task);
     const records = TrainingStore.taskAssignedCompletions(task);
     const pct = TrainingStore.percent(records.length, assignedEmployees.length);

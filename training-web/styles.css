@@ -363,6 +363,9 @@ textarea:focus {
 
 .public-question-list {
   display: grid;
+  max-height: 360px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .public-question-item {
@@ -494,6 +497,9 @@ textarea:focus {
 
 .task-list {
   display: grid;
+  max-height: 360px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .task-item {
@@ -663,6 +669,7 @@ textarea:focus {
   display: grid;
   max-height: 320px;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .comment-item {
@@ -912,6 +919,9 @@ textarea:focus {
 
 .notification-list {
   display: grid;
+  max-height: 260px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .notification-item,
@@ -969,6 +979,21 @@ textarea:focus {
 
 .table-wrap {
   overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.employee-progress-scroll {
+  max-height: 372px;
+}
+
+.task-rate-scroll {
+  max-height: 360px;
+}
+
+.table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 table {
@@ -1061,6 +1086,9 @@ td {
 
 .recent-list {
   display: grid;
+  max-height: 292px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .feedback-inbox-panel {
@@ -1074,6 +1102,9 @@ td {
 .feedback-inbox-list,
 .question-inbox-list {
   display: grid;
+  max-height: 420px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .feedback-inbox-item {
