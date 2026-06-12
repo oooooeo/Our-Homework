@@ -16,6 +16,7 @@ const employeeEls = {
   employeeDone: document.querySelector("#employeeDone"),
   employeePercent: document.querySelector("#employeePercent"),
   employeeProgress: document.querySelector("#employeeProgress"),
+  progressColorInput: document.querySelector("#employeeProgressColor"),
   databaseNotice: document.querySelector("#databaseNotice"),
   notificationList: document.querySelector("#notificationList"),
   questionSearch: document.querySelector("#questionSearch"),
@@ -490,6 +491,12 @@ function renderFeedbackType() {
 employeeEls.logoutBtn.addEventListener("click", () => {
   TrainingStore.clearSession();
   redirectToPortal();
+});
+
+TrainingStore.syncProgressColorInput(employeeEls.progressColorInput);
+
+employeeEls.progressColorInput?.addEventListener("input", event => {
+  TrainingStore.setProgressColor(event.target.value);
 });
 
 employeeEls.feedbackOpenBtn.addEventListener("click", openFeedbackDrawer);

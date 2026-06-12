@@ -5,6 +5,7 @@ const adminEls = {
   taskCount: document.querySelector("#taskCount"),
   completionCount: document.querySelector("#completionCount"),
   overallProgress: document.querySelector("#overallProgress"),
+  progressColorInput: document.querySelector("#adminProgressColor"),
   feedbackCount: document.querySelector("#feedbackCount"),
   questionCount: document.querySelector("#questionCount"),
   feedbackInboxCount: document.querySelector("#feedbackInboxCount"),
@@ -450,4 +451,10 @@ adminEls.logoutBtn.addEventListener("click", () => {
 
 TrainingStore.subscribe(renderAdminPage);
 renderDepartmentOptions();
+TrainingStore.syncProgressColorInput(adminEls.progressColorInput);
+
+adminEls.progressColorInput?.addEventListener("input", event => {
+  TrainingStore.setProgressColor(event.target.value);
+});
+
 renderAdminPage();

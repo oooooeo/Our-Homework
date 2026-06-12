@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>培训后台主页</title>
-  <link rel="stylesheet" href="./styles.css?v=20260612-summary-row">
+  <link rel="stylesheet" href="./styles.css?v=20260612-progress-color">
 </head>
 <body>
   <div class="app-shell">
@@ -52,8 +52,14 @@
           <span class="metric-label">完成记录</span>
           <strong id="completionCount">0</strong>
         </div>
-        <div class="metric wide">
-          <span class="metric-label">总体进度</span>
+        <div class="metric wide progress-metric">
+          <div class="metric-topline">
+            <span class="metric-label">总体进度</span>
+            <label class="progress-color-control" title="更换进度条颜色" aria-label="更换进度条颜色">
+              <input id="adminProgressColor" type="color" value="#1f75cb">
+              <span class="progress-color-dot" aria-hidden="true"></span>
+            </label>
+          </div>
           <div class="progress-track">
             <div class="progress-fill" id="overallProgress"></div>
           </div>
@@ -171,7 +177,7 @@
     </main>
   </div>
 
-  <script src="./app.js?v=20260612-summary-row"></script>
-  <script src="./admin.js?v=20260612-summary-row"></script>
+  <script src="./app.js?v=20260612-progress-color"></script>
+  <script src="./admin.js?v=20260612-progress-color"></script>
 </body>
 </html>

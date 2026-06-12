@@ -5,6 +5,7 @@ const TrainingStore = (() => {
   const ACCENT = "#1f75cb";
   const REFRESH_INTERVAL_MS = 5000;
   const SESSION_KEY = "training-auth-session";
+  const PROGRESS_COLOR_KEY = "training-progress-color";
   const MANAGER_USERNAME = "supermanager";
   const DEPARTMENTS = ["人力资源部", "财务部", "市场部", "销售部", "技术部", "运营部"];
 
@@ -77,6 +78,51 @@ const TrainingStore = (() => {
 
   function clearSession() {
     window.localStorage.removeItem(SESSION_KEY);
+  }
+
+  function normalizeHexColor(value) {
+    const color = String(value ?? "").trim();
+    return /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : ACCENT;
+  }
+
+  function getProgressColor() {
+    try {
+      return normalizeHexColor(window.localStorage.getItem(PROGRESS_COLOR_KEY));
+    } catch {
+      return ACCENT;
+    }
+  }
+
+  function applyProgressColor(color = getProgressColor()) {
+    const safeColor = normalizeHexColor(color);
+    document.documentElement.style.setProperty("--progress-color", safeColor);
+    return safeColor;
+  }
+
+  function syncProgressColorInput(input) {
+    if (!input) return;
+    input.value = getProgressColor();
+  }
+
+  function refreshProgressBars() {
+    document.querySelectorAll(".progress-fill").forEach(fill => {
+      const pct = fill.dataset.progressPct ?? fill.dataset.pct ?? Number.parseFloat(fill.style.width) ?? 0;
+      setProgress(fill, pct);
+    });
+  }
+
+  function setProgressColor(color) {
+    const safeColor = applyProgressColor(color);
+    try {
+      window.localStorage.setItem(PROGRESS_COLOR_KEY, safeColor);
+    } catch {
+      // The visual update still works if localStorage is unavailable.
+    }
+    refreshProgressBars();
+    document.querySelectorAll("#employeeProgressColor, #adminProgressColor").forEach(input => {
+      input.value = safeColor;
+    });
+    return safeColor;
   }
 
   function isManagerSession() {
@@ -846,14 +892,24 @@ const TrainingStore = (() => {
     return `linear-gradient(90deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha}) ${safePct}%, transparent ${safePct}%, transparent 100%)`;
   }
 
-  function setProgress(element, pct, color = ACCENT) {
+  function setProgress(element, pct, color = getProgressColor()) {
     if (!element) return;
     const safePct = Math.max(0, Math.min(Number(pct) || 0, 100));
+    const safeColor = normalizeHexColor(color);
     const track = element.closest(".progress-track");
+    element.dataset.progressPct = String(safePct);
     element.style.width = `${safePct}%`;
-    element.style.background = progressFillStyle(color, safePct);
-    if (track) track.style.background = progressTrackStyle(color, safePct);
+    element.style.background = progressFillStyle(safeColor, safePct);
+    if (track) track.style.background = progressTrackStyle(safeColor, safePct);
   }
+
+  applyProgressColor();
+
+  window.addEventListener("storage", event => {
+    if (event.key !== PROGRESS_COLOR_KEY) return;
+    applyProgressColor(event.newValue);
+    refreshProgressBars();
+  });
 
   channel?.addEventListener("message", message => {
     if (message.data?.type !== "state-updated") return;
@@ -877,6 +933,9 @@ const TrainingStore = (() => {
     getSession,
     setSession,
     clearSession,
+    getProgressColor,
+    setProgressColor,
+    syncProgressColorInput,
     departments: DEPARTMENTS,
     normalizeDepartment,
     normalizeTargetDepartments,

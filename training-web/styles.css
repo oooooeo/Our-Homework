@@ -6,6 +6,7 @@
   --line: #d9dee7;
   --accent: #1f75cb;
   --accent-strong: #155ca4;
+  --progress-color: #1f75cb;
   --success: #20805d;
   --warning: #b26a1b;
   --danger: #b42318;
@@ -277,11 +278,65 @@ textarea:focus {
   grid-column: span 2;
 }
 
+.progress-metric {
+  position: relative;
+}
+
+.metric-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
 .metric-label {
   display: block;
   color: var(--muted);
   font-size: 12px;
   margin-bottom: 8px;
+}
+
+.metric-topline .metric-label {
+  margin-bottom: 0;
+}
+
+.progress-color-control {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.progress-color-control:hover {
+  border-color: var(--progress-color);
+  transform: translateY(-1px);
+}
+
+.progress-color-control input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.progress-color-dot {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: var(--progress-color);
+  box-shadow: 0 0 0 1px rgba(32, 36, 42, 0.18);
+  pointer-events: none;
 }
 
 .metric strong {
